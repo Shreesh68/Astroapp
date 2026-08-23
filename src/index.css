@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root{
+	--k-saffron: #FF9933;
+	--k-green: #007A3D;
+}
+
+body { @apply bg-slate-50 text-slate-900 font-sans; }
+
+/* Use Kannada font for data-lang=kn if available */
+[data-lang="kn"] body { font-family: 'Noto Sans Kannada', 'Poppins', system-ui, -apple-system, sans-serif; }
+
+.hero-gradient{ background: linear-gradient(90deg, rgba(255,153,51,0.12), rgba(0,122,61,0.06)); }
+

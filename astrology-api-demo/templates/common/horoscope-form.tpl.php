@@ -1,0 +1,38 @@
+<div class="form-group row">
+    <label class="col-sm-3 col-md-4 col-form-label  text-md-right text-xs-left">Ayanamsa</label>
+    <div class="col-sm-9 col-md-6">
+        <select name="ayanamsa" class="form-control form-control-lg rounded-1">
+            <option value="1" <?= 1 === $ayanamsa ? 'selected' : ''?>>Lahiri</option>
+            <option value="3" <?= 3 === $ayanamsa ? 'selected' : ''?>>Raman</option>
+            <option value="5" <?= 5 === $ayanamsa ? 'selected' : ''?>>KP</option>
+        </select>
+    </div>
+</div>
+<div class="form-group row">
+    <label class="col-sm-3 col-md-4 col-form-label  text-md-right text-xs-left">Date: </label>
+    <div class="col-sm-9 col-md-6 ">
+        <input type='datetime-local' name="datetime" class="form-control form-control-lg rounded-1" required="required" value="<?= $datetime->format('Y-m-d\TH:i')?>" min="<?= $time_now->modify('-1 day')->setTime(0,0,0)->format('Y-m-d\TH:i')?>" max="<?= $time_now->modify('+1 day')->setTime(23,59,0)->format('Y-m-d\TH:i')?>"/>
+    </div>
+</div>
+
+<div class="form-group row">
+    <label class="col-sm-3 col-md-4 col-form-label  text-md-right text-xs-left ">Place of birth:</label>
+    <div class="col-sm-9 col-md-6 ">
+        <input type='text' id="fin-location" name="location" autocomplete="off" class="form-control form-control-lg rounded-1 prokerala-location-input" placeholder="Place of birth" value="" required>
+    </div>
+</div>
+<?php if (isset($arSupportedLanguages)): ?>
+<div class="form-group row">
+    <label class="col-sm-3 col-md-4 col-form-label  text-md-right text-xs-left">Language</label>
+    <div class="col-sm-9 col-md-6">
+        <select name="la" class="form-control form-control-lg rounded-1">
+            <?php foreach ($arSupportedLanguages as $laValue => $laName): ?>
+                <option value="<?=$laValue?>" ><?=$laName?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+</div>
+<?php endif; ?>
+<div id="form-hidden-fields">
+
+</div>
