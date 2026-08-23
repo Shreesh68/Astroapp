@@ -31,9 +31,14 @@ except Exception:
 app = FastAPI(title='KarnatakaMatch Ephemeris')
 
 # Allow localhost:5173 (vite) during development
+import os
+
+_raw = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173")
+_allowed_origins = [o.strip() for o in _raw.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,6 +46,10 @@ app.add_middleware(
 
 if prokerala_router is not None:
     app.include_router(prokerala_router)
+
+@app.get('/')
+def root():
+    return {'status': 'ok'}
 
 
 class ChartRequest(BaseModel):
