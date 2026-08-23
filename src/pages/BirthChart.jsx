@@ -15,7 +15,6 @@ export default function BirthChart(){
   const [tob, setTob] = useState('')
   const [selectedLoc, setSelectedLoc] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [source, setSource] = useState('local')
 
   function submit(e){
     e.preventDefault()
@@ -30,10 +29,9 @@ export default function BirthChart(){
         const date = formatDateInput(dob, tob, tz)
         if(!date) return alert('Invalid date/time')
 
-        // Call backend ephemeris API (local or Prokerala proxy)
+        // Call backend ephemeris API
         const payload = { date: dob, time: tob, lat, lon, tz }
-        const endpoint = source === 'prokerala' ? '/api/chart/prokerala' : '/api/chart'
-        const res = await fetch(`http://127.0.0.1:8000${endpoint}`, {
+        const res = await fetch('http://127.0.0.1:8000/api/chart', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -87,13 +85,7 @@ export default function BirthChart(){
             >
               {loading ? 'Computing…' : 'Compute Chart →'}
             </button>
-            <div className="flex items-center gap-2 text-sm">
-              <label>Source:</label>
-              <select value={source} onChange={e=>setSource(e.target.value)} className="border p-1 rounded">
-                <option value="local">Swiss Ephemeris (local)</option>
-                <option value="prokerala">Prokerala (API)</option>
-              </select>
-            </div>
+
           </div>
         </form>
       </div>

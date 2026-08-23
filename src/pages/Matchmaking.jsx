@@ -1,26 +1,31 @@
 import { useState, lazy, Suspense } from 'react'
 import { getSunSignFromDate, formatDateInput } from '../utils/zodiac'
 import { matchProfiles } from '../utils/matchmaking'
-import { geocodePlace, getTimezone } from '../utils/geocode'
+import { getTimezone } from '../utils/geocode'
+import PlaceSearch from '../components/PlaceSearch'
 
 const SouthIndianChart = lazy(() => import('../components/SouthIndianChart'))
 
 export default function Matchmaking(){
-  const [groom, setGroom] = useState({name:'', dob:'', tob:'', place:''})
-  const [bride, setBride] = useState({name:'', dob:'', tob:'', place:''})
+  const [groom, setGroom] = useState({name:'', dob:'', tob:''})
+  const [bride, setBride] = useState({name:'', dob:'', tob:''})
+  const [groomLoc, setGroomLoc] = useState(null)
+  const [brideLoc, setBrideLoc] = useState(null)
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
 
   function submit(e){
     e.preventDefault()
-    if(!groom.name||!groom.dob||!groom.tob||!groom.place||!bride.name||!bride.dob||!bride.tob||!bride.place) return alert('Please fill all fields including time of birth')
+    if(!groom.name||!groom.dob||!groom.tob||!bride.name||!bride.dob||!bride.tob) return alert('Please fill all fields including time of birth')
+    if(!groomLoc) return alert('Please search and select a place for Groom')
+    if(!brideLoc) return alert('Please search and select a place for Bride')
     ;(async()=>{
       setLoading(true)
       try{
-        const loc1 = await geocodePlace(groom.place)
-        const loc2 = await geocodePlace(bride.place)
-        const tz1 = loc1 ? getTimezone(loc1.lat, loc1.lon) : null
-        const tz2 = loc2 ? getTimezone(loc2.lat, loc2.lon) : null
+        const loc1 = groomLoc
+        const loc2 = brideLoc
+        const tz1 = getTimezone(loc1.lat, loc1.lon)
+        const tz2 = getTimezone(loc2.lat, loc2.lon)
 
         const date1 = formatDateInput(groom.dob, groom.tob, tz1)
         const date2 = formatDateInput(bride.dob, bride.tob, tz2)
@@ -64,7 +69,7 @@ export default function Matchmaking(){
           <input placeholder="Name" className="w-full border p-2 rounded mb-2" value={groom.name} onChange={e=>setGroom({...groom,name:e.target.value})} required />
           <input type="date" className="w-full border p-2 rounded mb-2" value={groom.dob} onChange={e=>setGroom({...groom,dob:e.target.value})} required />
           <input type="time" className="w-full border p-2 rounded mb-2" value={groom.tob} onChange={e=>setGroom({...groom,tob:e.target.value})} required />
-          <input placeholder="Place" list="karnataka-cities" className="w-full border p-2 rounded" value={groom.place} onChange={e=>setGroom({...groom,place:e.target.value})} required />
+          <PlaceSearch onLocationSelect={setGroomLoc} placeholder="Type city or village…" />
         </div>
 
         <div className="bg-white p-4 rounded shadow">
@@ -72,18 +77,8 @@ export default function Matchmaking(){
           <input placeholder="Name" className="w-full border p-2 rounded mb-2" value={bride.name} onChange={e=>setBride({...bride,name:e.target.value})} required />
           <input type="date" className="w-full border p-2 rounded mb-2" value={bride.dob} onChange={e=>setBride({...bride,dob:e.target.value})} required />
           <input type="time" className="w-full border p-2 rounded mb-2" value={bride.tob} onChange={e=>setBride({...bride,tob:e.target.value})} required />
-          <input placeholder="Place" list="karnataka-cities" className="w-full border p-2 rounded" value={bride.place} onChange={e=>setBride({...bride,place:e.target.value})} required />
+          <PlaceSearch onLocationSelect={setBrideLoc} placeholder="Type city or village…" />
         </div>
-
-        <datalist id="karnataka-cities">
-          <option value="Bengaluru" />
-          <option value="Mysuru" />
-          <option value="Mangaluru" />
-          <option value="Hubli" />
-          <option value="Belgaum" />
-          <option value="Dharwad" />
-          <option value="Ballari" />
-        </datalist>
 
         <div className="md:col-span-2">
           <button className="px-4 py-2 bg-rose-500 text-white rounded">Check Match</button>
