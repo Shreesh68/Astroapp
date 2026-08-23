@@ -31,7 +31,8 @@ export default function BirthChart(){
 
         // Call backend ephemeris API
         const payload = { date: dob, time: tob, lat, lon, tz }
-        const res = await fetch('http://127.0.0.1:8000/api/chart', {
+        const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+        const res = await fetch(`${API_BASE}/api/chart`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)

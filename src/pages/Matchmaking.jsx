@@ -32,8 +32,9 @@ export default function Matchmaking(){
         if(!date1 || !date2) return alert('Invalid date/time')
 
         // Call backend for both charts
-        const p1 = await fetch('http://127.0.0.1:8000/api/chart', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ date: groom.dob, time: groom.tob, lat: loc1?.lat||0, lon: loc1?.lon||0, tz: tz1 }) })
-        const p2 = await fetch('http://127.0.0.1:8000/api/chart', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ date: bride.dob, time: bride.tob, lat: loc2?.lat||0, lon: loc2?.lon||0, tz: tz2 }) })
+        const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+        const p1 = await fetch(`${API_BASE}/api/chart`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ date: groom.dob, time: groom.tob, lat: loc1?.lat||0, lon: loc1?.lon||0, tz: tz1 }) })
+        const p2 = await fetch(`${API_BASE}/api/chart`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ date: bride.dob, time: bride.tob, lat: loc2?.lat||0, lon: loc2?.lon||0, tz: tz2 }) })
         const j1 = await p1.json()
         const j2 = await p2.json()
         if(j1.error) throw new Error(j1.error)
