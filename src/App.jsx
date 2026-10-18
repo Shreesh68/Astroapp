@@ -1,25 +1,46 @@
-import { useState } from 'react'
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+import { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import Home from './pages/Home'
 import BirthChart from './pages/BirthChart'
 import ChartResultPage from './pages/ChartResultPage'
 import Matchmaking from './pages/Matchmaking'
+import MatchResultPage from './pages/MatchResultPage'
+import Panchang from './pages/Panchang'
 import About from './pages/About'
 import Header from './components/Header'
 import Footer from './components/Footer'
+import { warmUp } from './lib/api'
+
+function ScrollToTop() {
+  const { pathname, search } = useLocation()
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname, search])
+  return null
+}
 
 export default function App() {
+  useEffect(() => {
+    warmUp()
+    // closed <details> sections would be missing from the printed report
+    const openAll = () => document.querySelectorAll('details').forEach(d => { d.open = true })
+    window.addEventListener('beforeprint', openAll)
+    return () => window.removeEventListener('beforeprint', openAll)
+  }, [])
+
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-grow container mx-auto px-4 py-8">
+        <main className="flex-grow container mx-auto px-4 py-6 sm:py-10">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/birth-chart" element={<BirthChart />} />
             <Route path="/birth-chart/result" element={<ChartResultPage />} />
             <Route path="/matchmaking" element={<Matchmaking />} />
+            <Route path="/matchmaking/result" element={<MatchResultPage />} />
+            <Route path="/panchang" element={<Panchang />} />
             <Route path="/about" element={<About />} />
+            <Route path="*" element={<Home />} />
           </Routes>
         </main>
         <Footer />

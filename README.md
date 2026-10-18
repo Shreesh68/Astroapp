@@ -1,44 +1,39 @@
-# AstrologyApp (Static)
+# KarnatakaMatch
 
-Simple static site scaffold for a South-Indian (Karnataka-focused) astrology / matchmaking site.
+Vedic birth charts, Ashtakoota kundli matching and a daily Panchang, in Kannada and English.
 
-What this scaffold includes
-- React + Vite front-end
-- Tailwind CSS for styling
-- Pages: Home, Birth Chart (single profile), Matchmaking (bride + groom), About
-- Simple deterministic placeholder astrology utilities (sun-sign + approximate dosha checks)
+- **Frontend:** React + Vite + Tailwind (`src/`)
+- **Backend:** FastAPI + Swiss Ephemeris (`backend/`), which handles every calculation
 
-Important notes
-- Calculations are simplified placeholders and NOT a substitute for professional/astronomical chart calculation. For production accuracy integrate an astrology engine (e.g. Swiss Ephemeris) or a verified astrology API.
+## Features
+- **Guided input:** one question at a time, with an "I don't know the birth time" option and saved people ("My people", stored in this browser only).
+- **Birth chart:** a plain-language reading of Moon sign, nakshatra and Lagna; a tappable South-Indian chart that explains each house; a Vimshottari dasha timeline; and a South Indian Kuja dosha check (2, 4, 7, 8, 12 from Lagna, Moon and Venus, with the standard exemptions).
+- **Matching:** traditional 36-guna Ashtakoota, with common Nadi/Bhakoot cancellations and Kuja dosha samya between the two charts.
+- **Panchang:** Samvatsara, Ayana, Rutu and Maasa (amanta, with Adhika masa); tithi, nakshatra, yoga and karana with end times; sunrise and sunset; Rahu Kala, Yamaganda and Gulika.
+- **Sharing:** every result lives in its URL, so pages survive a refresh and can be shared (WhatsApp / share sheet). "Save as PDF" uses a print stylesheet.
 
-Quick start (macOS, zsh)
-
-```bash
-cd /Users/shreesh/Desktop/AstrologyApp
-npm install
-npm run dev
-```
-
-Important: The app now requires time-of-birth inputs for accurate quick previews. Enter local time (HH:MM) along with date when using `Birth Chart` or `Matchmaking`.
-
-Backend (ephemeris) — optional, for accurate Vedic charts
-
-The project includes a minimal FastAPI backend (`/backend`) that uses Swiss Ephemeris (`pyswisseph`) to compute sidereal rāśi and nakshatra. To run it locally:
+## Run locally (macOS, zsh)
 
 ```bash
-cd /Users/shreesh/Desktop/AstrologyApp/backend
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-pip install -r requirements.txt
+# backend
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
 uvicorn app:app --reload --port 8000
+
+# frontend (another terminal, repo root)
+npm install
+npm run dev          # http://localhost:5173
 ```
 
-Once the backend is running, the frontend will POST to `http://127.0.0.1:8000/api/chart` to get Vedic planetary positions. If the backend is not running the app will fall back to simplified local calculations.
+Set `VITE_API_URL` (see `.env.example`) when the backend is not on `http://127.0.0.1:8000`, and set `ALLOWED_ORIGINS` on the backend to the frontend's origin.
 
-Open http://localhost:5173 in your browser.
+## Tests
 
-Next steps I can take for you
-- Integrate a proper ephemeris library for accurate birth charts
-- Add Kannada language support and Karnataka-specific UI assets
-- Add printable PDF birth-chart reports
+```bash
+cd backend && .venv/bin/python -m pytest -q
+```
+
+## Notes
+- Calculation conventions: Lahiri ayanamsa, mean Rahu, whole-sign houses. Kuja dosha follows South Indian practice (`backend/kuja.py` lists every exemption). Lunar months are amanta and Rutu is Chandramana, as in Karnataka. Vashya and Gana scoring tables differ between traditions, and `backend/ashtakoota.py` documents the ones used.
+- Place search uses OpenStreetMap Nominatim, which is limited to about 1 request per second. For real traffic, proxy it through the backend or use a commercial geocoder.

@@ -1,8 +1,13 @@
+import { Link } from 'react-router-dom'
+import { useLanguage } from '../contexts/LanguageContext'
+
 export default function Footer(){
+  const { t } = useLanguage()
   return (
-    <footer className="bg-slate-800 text-slate-200 py-6">
-      <div className="container mx-auto px-4 text-center">
-        <p className="text-sm">© {new Date().getFullYear()} KarnatakaMatch — simplified demo. For accurate charts integrate an ephemeris.</p>
+    <footer className="no-print border-t border-cream-200 pt-8 pb-24 md:pb-8 text-ink-500">
+      <div className="container mx-auto px-4 flex flex-col sm:flex-row gap-2 items-center justify-between text-sm">
+        <p>© {new Date().getFullYear()} {t('brand')} · {t('footnote')}</p>
+        <Link to="/about" className="hover:text-ink">{t('nav_about')}</Link>
       </div>
     </footer>
   )

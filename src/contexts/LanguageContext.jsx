@@ -1,23 +1,30 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { translate } from '../lib/i18n'
 
-const LanguageContext = createContext()
+const LanguageContext = createContext({ lang: 'en', setLang: () => {}, t: k => k })
+
+function initialLang() {
+  try {
+    return localStorage.getItem('karnataka_lang') === 'kn' ? 'kn' : 'en'
+  } catch {
+    return 'en'
+  }
+}
 
 export function LanguageProvider({ children }){
-  const [lang, setLang] = useState('en')
+  const [lang, setLang] = useState(initialLang)
 
   useEffect(()=>{
-    const saved = localStorage.getItem('karnataka_lang')
-    if(saved) setLang(saved)
-  }, [])
-
-  useEffect(()=>{
-    localStorage.setItem('karnataka_lang', lang)
-    // mark on <html> for styling if needed
+    try { localStorage.setItem('karnataka_lang', lang) } catch { /* ignore */ }
+    // mark on <html> for styling and screen readers
     document.documentElement.setAttribute('data-lang', lang)
+    document.documentElement.setAttribute('lang', lang)
   }, [lang])
 
+  const t = useCallback((key, vars) => translate(lang, key, vars), [lang])
+
   return (
-    <LanguageContext.Provider value={{ lang, setLang }}>
+    <LanguageContext.Provider value={{ lang, setLang, t }}>
       {children}
     </LanguageContext.Provider>
   )

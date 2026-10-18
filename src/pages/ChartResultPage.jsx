@@ -1,266 +1,210 @@
-import React, { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import SouthIndianChart from '../components/SouthIndianChart'
-
-// ── Translations ────────────────────────────────────────────
-const T = {
-  en: {
-    title:        'Birth Chart',
-    back:         '← Back',
-    name:         'Name',
-    dob:          'Date of Birth',
-    tob:          'Time of Birth',
-    place:        'Place',
-    lat:          'Lat',
-    lon:          'Lon',
-    tz:           'Time Zone',
-    chartTitle:   'South Indian Birth Chart',
-    planets:      'Planet Positions',
-    planet:       'Planet',
-    rashi:        'Rāśi',
-    degree:       'Degree',
-    nakshatra:    'Nakshatra',
-    pada:         'Pada',
-    lagna:        'Lagna (Ascendant)',
-    moonRashi:    'Moon Rāśi (Janma)',
-    moonNak:      'Moon Nakshatra',
-    doshas:       'Dosha Summary',
-    manglik:      'Manglik',
-    marsHouse:    'Mars in house',
-    nadi:         'Nadi conflict',
-    yes:          'Yes',
-    no:           'No',
-    approx:       'approx',
-    note:         'Calculated using Swiss Ephemeris · Lahiri Ayanamsa',
-    langBtn:      'ಕನ್ನಡ',
-  },
-  kn: {
-    title:        'ಜನ್ಮ ಕುಂಡಲಿ',
-    back:         '← ಹಿಂದೆ',
-    name:         'ಹೆಸರು',
-    dob:          'ಜನ್ಮ ದಿನಾಂಕ',
-    tob:          'ಜನ್ಮ ಸಮಯ',
-    place:        'ಸ್ಥಳ',
-    lat:          'ಅಕ್ಷಾಂಶ',
-    lon:          'ರೇಖಾಂಶ',
-    tz:           'ಸಮಯ ವಲಯ',
-    chartTitle:   'ದಕ್ಷಿಣ ಭಾರತ ಜನ್ಮ ಕುಂಡಲಿ',
-    planets:      'ಗ್ರಹ ಸ್ಥಾನಗಳು',
-    planet:       'ಗ್ರಹ',
-    rashi:        'ರಾಶಿ',
-    degree:       'ಅಂಶ',
-    nakshatra:    'ನಕ್ಷತ್ರ',
-    pada:         'ಪಾದ',
-    lagna:        'ಲಗ್ನ',
-    moonRashi:    'ಚಂದ್ರ ರಾಶಿ (ಜನ್ಮ)',
-    moonNak:      'ಜನ್ಮ ನಕ್ಷತ್ರ',
-    doshas:       'ದೋಷ ವಿವರ',
-    manglik:      'ಮಾಂಗಲಿಕ',
-    marsHouse:    'ಮಂಗಳ ಭಾವ',
-    nadi:         'ನಾಡಿ ದೋಷ',
-    yes:          'ಹೌದು',
-    no:           'ಇಲ್ಲ',
-    approx:       'ಅಂದಾಜು',
-    note:         'ಸ್ವಿಸ್ ಎಫೆಮೆರಿಸ್ · ಲಹಿರಿ ಅಯನಾಂಶ ಬಳಸಿ ಲೆಕ್ಕ ಹಾಕಲಾಗಿದೆ',
-    langBtn:      'English',
-  },
-}
-
-const PLANET_NAMES_EN = {
-  sun: 'Sun', moon: 'Moon', mercury: 'Mercury', venus: 'Venus',
-  mars: 'Mars', jupiter: 'Jupiter', saturn: 'Saturn', rahu: 'Rahu', ketu: 'Ketu',
-}
-const PLANET_NAMES_KN = {
-  sun: 'ರವಿ (ಸೂರ್ಯ)', moon: 'ಚಂದ್ರ', mercury: 'ಬುಧ', venus: 'ಶುಕ್ರ',
-  mars: 'ಮಂಗಳ (ಕುಜ)', jupiter: 'ಗುರು (ಬೃಹಸ್ಪತಿ)', saturn: 'ಶನಿ',
-  rahu: 'ರಾಹು', ketu: 'ಕೇತು',
-}
-const RASHI_KN = {
-  Mesha: 'ಮೇಷ', Vrishabha: 'ವೃಷಭ', Mithuna: 'ಮಿಥುನ', Karka: 'ಕರ್ಕ',
-  Simha: 'ಸಿಂಹ', Kanya: 'ಕನ್ಯಾ', Tula: 'ತುಲಾ', Vrischika: 'ವೃಶ್ಚಿಕ',
-  Dhanu: 'ಧನು', Makara: 'ಮಕರ', Kumbha: 'ಕುಂಭ', Meena: 'ಮೀನ',
-}
-
-const RASHI_LIST = ['Mesha','Vrishabha','Mithuna','Karka','Simha','Kanya','Tula','Vrischika','Dhanu','Makara','Kumbha','Meena']
-
-function rashiLabel(sign, lang) {
-  return lang === 'kn' ? (RASHI_KN[sign] || sign) : sign
-}
-
-function formatDOB(iso) {
-  if (!iso) return iso
-  const [y, m, d] = iso.split('-')
-  return `${d}/${m}/${y}`
-}
+import { useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { useLanguage } from '../contexts/LanguageContext'
+import { getChart } from '../lib/api'
+import { HOUSES, NAKSHATRAS, PLANETS, PLANET_ORDER, RASHIS, dms, nakName, pick, planetName, rashiName, reasonText } from '../lib/astro'
+import { fmtLongDate, fmtTime } from '../lib/dates'
+import { saveProfile, useProfiles } from '../lib/profiles'
+import { paramsToProfile, profileToParams } from '../lib/share'
+import { useAsync } from '../lib/useAsync'
+import SouthIndianChart, { planetsBySign } from '../components/SouthIndianChart'
+import DashaTimeline, { currentDasha } from '../components/DashaTimeline'
+import LoadingOverlay, { ErrorState } from '../components/LoadingOverlay'
+import ShareBar from '../components/ShareBar'
 
 export default function ChartResultPage() {
-  const { state } = useLocation()
-  const navigate  = useNavigate()
-  const [lang, setLang] = useState('kn')
+  const [params] = useSearchParams()
+  const { t } = useLanguage()
+  const profile = paramsToProfile(params)
+  const key = params.toString()
+  const { data: chart, error, loading, retry } = useAsync(() => (profile ? getChart(profile) : null), key)
 
-  if (!state || !state.ephem) {
-    return (
-      <div className="text-center mt-20">
-        <p className="text-slate-500 mb-4">No chart data found.</p>
-        <button onClick={() => navigate('/birth-chart')} className="px-4 py-2 bg-amber-500 text-white rounded">
-          ← Go back
-        </button>
-      </div>
-    )
-  }
+  if (!profile) return <ErrorState message={t('not_found')} backTo="/birth-chart" />
+  if (loading) return <LoadingOverlay message={t('loading_chart')} />
+  if (error) return <ErrorState message={error.message} onRetry={retry} backTo="/birth-chart" />
+  return <ChartView key={key} profile={profile} chart={chart} />
+}
 
-  const { name, dob, tob, place, ephem, doshas, location } = state
-  const t  = T[lang]
-
-  // Build ketu
-  const planets = { ...ephem.planets }
-  const rahuLon = planets?.rahu?.lon
-  if (rahuLon != null) {
-    const ketuLon = (rahuLon + 180) % 360
-    planets.ketu = { lon: ketuLon, sign: RASHI_LIST[Math.floor(ketuLon / 30) % 12], degree: ketuLon % 30 }
-  }
-  const ephem2 = { ...ephem, planets }
-
-  const manglikVal = ephem.manglik === true ? t.yes : ephem.manglik === false ? t.no : (doshas?.manglik ? t.yes : t.no)
+function ChartView({ profile, chart }) {
+  const { t, lang } = useLanguage()
+  const { isSaved } = useProfiles()
+  const [selected, setSelected] = useState(chart.ascendant.sign_index)
+  const moon = chart.planets.moon
+  const asc = chart.ascendant
+  const nak = NAKSHATRAS[moon.nakshatra_index]
+  const running = currentDasha(chart.dasha)
+  const saved = isSaved(profile)
+  const first = profile.name.split(' ')[0]
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto', padding: '0 0 40px' }}>
-
-      {/* Top bar */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '12px 0', marginBottom: '8px',
-      }}>
-        <button
-          onClick={() => navigate('/birth-chart')}
-          style={{ background: 'none', border: 'none', color: '#92400e', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
-        >
-          {t.back}
-        </button>
-        <button
-          onClick={() => setLang(l => l === 'en' ? 'kn' : 'en')}
-          style={{
-            padding: '5px 14px', borderRadius: 20, border: '1.5px solid #d97706',
-            background: '#fffbeb', color: '#92400e', fontWeight: 700, fontSize: 13, cursor: 'pointer',
-          }}
-        >
-          {t.langBtn}
-        </button>
+    <div className="mx-auto max-w-5xl space-y-6">
+      <div className="print-only mb-4">
+        <p className="text-sm">{t('brand')} · {window.location.host}</p>
       </div>
 
-      {/* Header card */}
-      <div style={{
-        background: 'linear-gradient(135deg,#92400e,#d97706)',
-        borderRadius: 12, padding: '20px 24px', color: '#fff', marginBottom: 20,
-      }}>
-        <p style={{ fontSize: 11, opacity: 0.8, marginBottom: 2 }}>{t.title}</p>
-        <h1 style={{ fontSize: 26, fontWeight: 800, margin: '0 0 12px' }}>{name}</h1>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', fontSize: 13 }}>
-          <span><b>{t.dob}:</b> {formatDOB(dob)}</span>
-          <span><b>{t.tob}:</b> {tob}</span>
-          <span style={{ gridColumn: '1 / 3' }}><b>{t.place}:</b> {place}</span>
-          <span><b>{t.lat}:</b> {location?.lat?.toFixed(4)}</span>
-          <span><b>{t.lon}:</b> {location?.lon?.toFixed(4)}</span>
-          <span style={{ gridColumn: '1 / 3' }}><b>{t.tz}:</b> {location?.tz}</span>
+      {/* Story */}
+      <section className="hero-gradient stars rounded-3xl px-6 py-8 sm:px-10 sm:py-10 text-cream animate-rise print:text-ink print:bg-none">
+        <p className="eyebrow !text-turmeric">{t('chart_of')}</p>
+        <h1 className="font-display text-3xl sm:text-4xl font-bold mt-1">{profile.name}</h1>
+        <p className="mt-2 text-cream/75 print:text-ink-500">
+          {t('story_born', {
+            date: fmtLongDate(profile.date, lang),
+            time: profile.timeUnknown ? t('time_unknown_short') : fmtTime(profile.time, lang),
+            place: profile.place,
+          })}
+        </p>
+        <div className="mt-6 space-y-3 text-lg leading-relaxed max-w-3xl">
+          <p>{t('story_moon', { name: first, rashi: rashiName(moon.sign_index, lang), nak: nakName(moon.nakshatra_index, lang), pada: moon.pada, trait: pick(RASHIS[moon.sign_index].trait, lang) })}</p>
+          <p className="text-cream/85 print:text-ink">{t('story_nak', { nak: nakName(moon.nakshatra_index, lang), symbol: nak.symbol.toLowerCase(), deity: nak.deity, trait: pick(nak.trait, lang) })}</p>
+          {profile.timeUnknown
+            ? <p className="text-base rounded-xl bg-white/10 px-4 py-3">⚠ {t('story_lagna_unknown')}</p>
+            : <p className="text-cream/85 print:text-ink">{t('story_lagna', { rashi: rashiName(asc.sign_index, lang), trait: pick(RASHIS[asc.sign_index].trait, lang) })}</p>}
         </div>
-      </div>
+      </section>
 
       {/* Key facts */}
-      <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-        gap: 10, marginBottom: 20,
-      }}>
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: t.lagna,    value: rashiLabel(ephem.ascendant?.sign, lang), sub: `${ephem.ascendant?.degree?.toFixed(1)}°` },
-          { label: t.moonRashi, value: rashiLabel(ephem.planets?.moon?.sign, lang), sub: `${ephem.planets?.moon?.degree?.toFixed(1)}°` },
-          { label: t.moonNak,  value: ephem.moon_nakshatra?.name, sub: `${t.pada} ${ephem.moon_nakshatra?.pada}` },
-        ].map(({ label, value, sub }) => (
-          <div key={label} style={{
-            background: '#fff', border: '1.5px solid #fde68a',
-            borderRadius: 10, padding: '12px 10px', textAlign: 'center',
-          }}>
-            <p style={{ fontSize: 10, color: '#92400e', fontWeight: 600, margin: '0 0 4px', textTransform: 'uppercase' }}>{label}</p>
-            <p style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: 0 }}>{value}</p>
-            <p style={{ fontSize: 11, color: '#64748b', margin: '2px 0 0' }}>{sub}</p>
+          { label: t('key_lagna'), value: rashiName(asc.sign_index, lang), sub: dms(asc.degree), dim: profile.timeUnknown },
+          { label: t('key_moon'), value: rashiName(moon.sign_index, lang), sub: dms(moon.degree) },
+          { label: t('key_nak'), value: nakName(moon.nakshatra_index, lang), sub: `${t('pada')} ${moon.pada}` },
+          running && { label: t('key_dasha'), value: `${planetName(running.maha.lord, lang)} / ${planetName(running.antar?.lord, lang)}`, sub: lang === 'kn' ? 'ಮಹಾದಶೆ / ಭುಕ್ತಿ' : 'mahadasha / bhukti' },
+        ].filter(Boolean).map((f, i) => (
+          <div key={f.label} className={`card px-4 py-4 animate-rise ${f.dim ? 'opacity-60' : ''}`} style={{ animationDelay: `${100 + i * 60}ms` }}>
+            <p className="eyebrow">{f.label}</p>
+            <p className="font-display text-xl font-semibold mt-1">{f.value}</p>
+            <p className="text-xs text-ink-500">{f.sub}</p>
           </div>
         ))}
-      </div>
+      </section>
 
-      {/* South Indian Chart */}
-      <div style={{
-        background: '#fff', borderRadius: 12, padding: '16px',
-        boxShadow: '0 1px 6px rgba(0,0,0,0.08)', marginBottom: 20,
-      }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700, color: '#92400e', margin: '0 0 14px', textAlign: 'center' }}>
-          {t.chartTitle}
-        </h2>
-        <SouthIndianChart ephem={ephem2} lang={lang} size="lg" />
-      </div>
-
-      {/* Planet table */}
-      <div style={{ background: '#fff', borderRadius: 12, padding: '16px', boxShadow: '0 1px 6px rgba(0,0,0,0.08)', marginBottom: 20 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700, color: '#92400e', margin: '0 0 12px' }}>{t.planets}</h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ background: '#fffbeb' }}>
-              <th style={thStyle}>{t.planet}</th>
-              <th style={thStyle}>{t.rashi}</th>
-              <th style={thStyle}>{t.degree}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(planets).map(([p, d], i) => (
-              <tr key={p} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                <td style={tdStyle}>
-                  {lang === 'kn' ? (PLANET_NAMES_KN[p] || p) : (PLANET_NAMES_EN[p] || p)}
-                </td>
-                <td style={tdStyle}>{rashiLabel(d?.sign, lang)}</td>
-                <td style={{ ...tdStyle, color: '#64748b' }}>{d?.degree?.toFixed(2)}°</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Dosha summary */}
-      <div style={{ background: '#fff', borderRadius: 12, padding: '16px', boxShadow: '0 1px 6px rgba(0,0,0,0.08)', marginBottom: 20 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700, color: '#92400e', margin: '0 0 12px' }}>{t.doshas}</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={doshaRow}>
-            <span style={{ fontWeight: 600 }}>{t.manglik}</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{
-                padding: '2px 12px', borderRadius: 20, fontWeight: 700, fontSize: 13,
-                background: ephem.manglik ? '#fee2e2' : '#dcfce7',
-                color: ephem.manglik ? '#b91c1c' : '#15803d',
-              }}>
-                {manglikVal}
-              </span>
-              {ephem.manglik_mars_house != null && (
-                <span style={{ fontSize: 11, color: '#64748b' }}>
-                  ({t.marsHouse} {ephem.manglik_mars_house})
-                </span>
-              )}
-            </span>
-          </div>
-          <div style={doshaRow}>
-            <span style={{ fontWeight: 600 }}>{t.nadi} <span style={{ fontSize: 11, color: '#94a3b8' }}>({t.approx})</span></span>
-            <span style={{
-              padding: '2px 12px', borderRadius: 20, fontWeight: 700, fontSize: 13,
-              background: doshas?.nadiConflict ? '#fee2e2' : '#dcfce7',
-              color: doshas?.nadiConflict ? '#b91c1c' : '#15803d',
-            }}>
-              {doshas?.nadiConflict ? t.yes : t.no}
-            </span>
-          </div>
+      {/* Interactive chart */}
+      <section className="card card-pad grid md:grid-cols-2 gap-6 items-start">
+        <div>
+          <h2 className="section-title">{t('chart_title')}</h2>
+          <SouthIndianChart ephem={chart} lang={lang} size="lg" selected={selected} onSelect={setSelected} />
+          <p className="no-print mt-3 text-center text-xs text-ink-500">{t('chart_tap')}</p>
         </div>
-      </div>
+        <HouseDetail chart={chart} sign={selected} />
+      </section>
 
-      <p style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>{t.note}</p>
+      {/* Dasha */}
+      <section className="card card-pad">
+        <h2 className="section-title">{t('dasha_title')}</h2>
+        <DashaTimeline dasha={chart.dasha} tz={profile.tz} />
+      </section>
+
+      {/* Manglik */}
+      <ManglikCard manglik={chart.manglik} />
+
+      {/* Table */}
+      <details className="card card-pad group" open={false}>
+        <summary className="section-title !mb-0 cursor-pointer list-none flex items-center justify-between">
+          {t('table_title')} <span className="text-ink-300 transition group-open:rotate-180" aria-hidden>▾</span>
+        </summary>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-turmeric-700 border-b-2 border-cream-200">
+                {['th_planet', 'th_rashi', 'th_deg', 'th_nak', 'th_house'].map(h => <th key={h} className="py-2 pr-4 font-semibold">{t(h)}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {[['lagna', asc], ...PLANET_ORDER.map(p => [p, chart.planets[p]])].map(([k, p]) => (
+                <tr key={k} className="border-b border-cream-100">
+                  <td className="py-2 pr-4 font-medium">
+                    {k === 'lagna' ? t('key_lagna') : planetName(k, lang)}
+                    {p.retrograde && k !== 'rahu' && k !== 'ketu' && <span className="ml-1 text-xs text-kumkum">({t('retro')})</span>}
+                  </td>
+                  <td className="py-2 pr-4">{rashiName(p.sign_index, lang)}</td>
+                  <td className="py-2 pr-4 tabular-nums">{dms(p.degree)}</td>
+                  <td className="py-2 pr-4">{nakName(p.nakshatra_index, lang)} {p.pada}</td>
+                  <td className="py-2 pr-4">{p.house ?? 1}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <ShareBar title={profile.name} text={t('share_text_chart', { name: profile.name })}>
+        <button onClick={() => saveProfile(profile)} disabled={saved} className="btn-outline">
+          {saved ? `✓ ${t('act_saved')}` : `☆ ${t('act_save')}`}
+        </button>
+        <Link to={`/matchmaking?${profileToParams(profile, 'w')}`} className="btn-primary">❦ {t('act_match', { name: first })}</Link>
+      </ShareBar>
+
+      <p className="text-center text-xs text-ink-300">{t('footnote')} · {chart.ayanamsa_degree.toFixed(4)}°</p>
     </div>
   )
 }
 
-const thStyle = { padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: '#92400e', borderBottom: '2px solid #fde68a' }
-const tdStyle = { padding: '7px 10px', borderBottom: '1px solid #f1f5f9' }
-const doshaRow = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }
+function HouseDetail({ chart, sign }) {
+  const { t, lang } = useLanguage()
+  const house = ((sign - chart.ascendant.sign_index + 12) % 12) + 1
+  const planets = planetsBySign(chart.planets)[sign] || []
+  const isLagna = sign === chart.ascendant.sign_index
+
+  return (
+    <div key={sign} className="animate-rise md:pt-10" aria-live="polite">
+      <p className="eyebrow">{t('house_n', { n: house })}{isLagna ? ` · ${t('key_lagna')}` : ''}</p>
+      <h3 className="font-display text-2xl font-semibold mt-1">
+        {rashiName(sign, lang)} <span className="text-base font-normal text-ink-500">({RASHIS[sign].west})</span>
+      </h3>
+      <p className="mt-2 text-ink-700">{pick(HOUSES[house - 1], lang)}</p>
+
+      <ul className="mt-5 space-y-3">
+        {planets.length === 0 && <li className="text-sm text-ink-500 italic">{t('house_empty')}</li>}
+        {planets.map(p => (
+          <li key={p.key} className="rounded-xl bg-cream px-4 py-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-semibold">
+                {planetName(p.key, lang)}
+                {p.retrograde && p.key !== 'rahu' && p.key !== 'ketu' && <span className="ml-2 chip-bad">{t('retro')}</span>}
+              </span>
+              <span className="text-sm tabular-nums text-ink-500">{dms(p.degree)}</span>
+            </div>
+            <p className="text-sm text-ink-500 mt-0.5">
+              {nakName(p.nakshatra_index, lang)} · {t('pada')} {p.pada} — {pick(PLANETS[p.key].means, lang)}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function ManglikCard({ manglik: m }) {
+  const { t, lang } = useLanguage()
+  const chip = { none: 'chip-good', mild: 'chip-warn', moderate: 'chip-bad', strong: 'chip-bad' }[m.strength]
+
+  function status(r) {
+    if (r.skipped) return { text: t('kuja_row_skipped'), tone: 'text-ink-300' }
+    if (r.active) return { text: t('kuja_row_active'), tone: 'text-kumkum font-semibold' }
+    if (r.dosha_house) return { text: t('kuja_row_exempt', { reason: reasonText(r.cancelled_reason, lang) }), tone: 'text-leaf' }
+    return { text: t('kuja_row_clear'), tone: 'text-ink-500' }
+  }
+
+  return (
+    <section className="card card-pad">
+      <div className="flex items-center gap-3 mb-2">
+        <h2 className="section-title !mb-0">{t('manglik_title')}</h2>
+        <span className={chip}>{t(`kuja_${m.strength}`)}</span>
+      </div>
+      <p className="text-sm text-ink-500 mb-4">{t('kuja_intro')}</p>
+      <ul className="grid sm:grid-cols-3 gap-3">
+        {m.references.map(r => {
+          const s = status(r)
+          return (
+            <li key={r.from} className={`rounded-xl px-4 py-3 ${r.active ? 'bg-kumkum-50 ring-1 ring-kumkum/40' : 'bg-cream'}`}>
+              <p className="eyebrow">{t(`kuja_ref_${r.from}`)}</p>
+              {r.house != null && <p className="font-semibold mt-0.5">{t('kuja_house', { n: r.house })}</p>}
+              <p className={`text-sm mt-0.5 ${s.tone}`}>{s.text}</p>
+            </li>
+          )
+        })}
+      </ul>
+      <p className="mt-3 text-xs text-ink-300">{t('kuja_note')}</p>
+    </section>
+  )
+}
