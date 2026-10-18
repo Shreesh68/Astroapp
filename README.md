@@ -30,7 +30,7 @@ Set `VITE_API_URL` (see `.env.example`) when the backend is not on `http://127.0
 
 ## Deploy (Render, free tier)
 
-`render.yaml` deploys both parts and points them at each other, so there are no URLs to copy by hand.
+`render.yaml` deploys both parts. It sets each service's public URL explicitly (`VITE_API_URL`, `ALLOWED_ORIGINS`), so update those two values if you rename a service.
 
 1. Push this repo to GitHub.
 2. On [render.com](https://render.com): **New → Blueprint**, then pick the repo and branch, then **Apply**.

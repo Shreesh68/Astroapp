@@ -1,5 +1,7 @@
-# Render Blueprint: deploys the API and the static site together and wires their URLs.
+# Render Blueprint: deploys the API and the static site together.
 # Render dashboard → New → Blueprint → pick this repo.
+# The two public URLs are set explicitly: Render's `fromService … host` gives the *internal*
+# hostname, which browsers can't reach. Update both values if a service is renamed.
 services:
   - type: web
     name: karnatakamatch-api
@@ -13,10 +15,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: ALLOWED_ORIGINS
-        fromService:
-          type: web
-          name: karnatakamatch
-          property: host
+        value: https://karnatakamatch.onrender.com
 
   - type: web
     name: karnatakamatch
@@ -34,7 +33,4 @@ services:
         value: public, max-age=31536000, immutable
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: karnatakamatch-api
-          property: host
+        value: https://karnatakamatch-api.onrender.com
