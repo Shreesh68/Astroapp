@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { DateTime } from 'luxon'
 import PlaceSearch from './PlaceSearch'
+import { DateFields, TimeFields } from './DateTimeFields'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useProfiles } from '../lib/profiles'
 import { getTimezone } from '../lib/geocode'
-import { fmtLongDate, fmtTime, weekdayOf } from '../lib/dates'
+import { fmtLongDate, fmtTime } from '../lib/dates'
 
 const STEPS = ['name', 'date', 'time', 'place', 'review']
 
@@ -120,10 +121,9 @@ export default function BirthWizard({ role = 'chart', initial = null, onSubmit, 
         {step === 'date' && (
           <>
             <Question>{t('wiz_date_title', { name })}</Question>
-            <input type="date" className="input text-lg" autoFocus value={data.date}
-              max={DateTime.now().toISODate()} onChange={e => set({ date: e.target.value })} />
+            <DateFields autoFocus value={data.date} onChange={date => set({ date })} />
             {data.date && !validate('date') && (
-              <p className="mt-3 text-ink-500 animate-rise">{t('wiz_date_weekday', { weekday: weekdayOf(data.date, lang) })}</p>
+              <p className="mt-3 text-ink-500 animate-rise">✓ {fmtLongDate(data.date, lang)}</p>
             )}
           </>
         )}
@@ -131,9 +131,7 @@ export default function BirthWizard({ role = 'chart', initial = null, onSubmit, 
         {step === 'time' && (
           <>
             <Question>{t('wiz_time_title')}</Question>
-            <input type="time" className="input text-lg disabled:bg-cream disabled:text-ink-300" autoFocus
-              value={data.timeUnknown ? '' : data.time} disabled={data.timeUnknown}
-              onChange={e => set({ time: e.target.value })} />
+            <TimeFields autoFocus value={data.time} disabled={data.timeUnknown} onChange={time => set({ time })} />
             <p className="mt-2 text-sm text-ink-500">{t('wiz_time_hint')}</p>
             <label className="mt-4 flex items-start gap-3 cursor-pointer select-none rounded-xl bg-cream px-4 py-3">
               <input type="checkbox" className="mt-1 accent-kumkum h-4 w-4" checked={data.timeUnknown}
