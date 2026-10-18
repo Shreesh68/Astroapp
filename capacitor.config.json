@@ -1,0 +1,15 @@
+{
+  "appId": "com.karnatakamatch.app",
+  "appName": "KarnatakaMatch",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#FDF8F0"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover",
+      "style": "DARK"
+    }
+  }
+}

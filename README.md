@@ -38,6 +38,27 @@ Set `VITE_API_URL` (see `.env.example`) when the backend is not on `http://127.0
 
 On the free plan the API sleeps after about 15 minutes of no traffic. The first request afterwards takes up to about a minute, and the app shows a "waking up" message while it waits.
 
+## Android app (Capacitor)
+
+The same React app is wrapped as a native Android app in `android/`. It talks to the live API on Render, using the URLs in `.env.android`.
+
+```bash
+npm run android        # builds the web app for Android, syncs it into android/, opens Android Studio
+```
+
+In Android Studio, pick your phone (USB debugging on) or an emulator and press **Run ▶**. To build an APK from the terminal:
+
+```bash
+npm run build:android
+cd android && JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew assembleDebug
+# → android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+- Rerun `npm run build:android` after every web change; the app bundles a copy of the site.
+- Icon and splash sources are in `assets/`. Regenerate the Android sizes with `npx @capacitor/assets generate --android`.
+- Inside the app, share links point at the public website, and "Save as PDF" is hidden because the Android WebView has no print dialog.
+- A Play Store release needs a signed build: in Android Studio, **Build → Generate Signed App Bundle**. Keep the keystore safe; every future update must be signed with the same key.
+
 ## Tests
 
 ```bash

@@ -1,3 +1,6 @@
+import { Share } from '@capacitor/share'
+import { isNativeApp, publicUrl } from './platform'
+
 /**
  * Birth details ⇄ URL query params, so result pages survive refresh and can be shared.
  * Keys are short to keep links WhatsApp-friendly; `prefix` lets two people share one URL.
@@ -38,7 +41,15 @@ export function matchPath(groom, bride) {
   return `/matchmaking/result?${params}`
 }
 
-export async function shareLink({ title, text, url = window.location.href }) {
+export async function shareLink({ title, text, url = publicUrl() }) {
+  if (isNativeApp) {
+    try {
+      await Share.share({ title, text, url, dialogTitle: title })
+      return 'shared'
+    } catch {
+      return 'cancelled'
+    }
+  }
   if (navigator.share) {
     try {
       await navigator.share({ title, text, url })
@@ -55,5 +66,5 @@ export async function shareLink({ title, text, url = window.location.href }) {
   }
 }
 
-export const whatsappUrl = (text, url = window.location.href) =>
+export const whatsappUrl = (text, url = publicUrl()) =>
   `https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`

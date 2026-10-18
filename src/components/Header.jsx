@@ -20,7 +20,8 @@ export default function Header() {
 
   return (
     <>
-      <header className="no-print sticky top-0 z-40 bg-ink/95 backdrop-blur text-cream">
+      {/* extends under the phone's status bar when the page is edge-to-edge (Android app) */}
+      <header className="no-print sticky top-0 z-40 bg-ink/95 backdrop-blur text-cream" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="container mx-auto px-4 h-14 flex items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-2 font-display text-lg font-bold">
             <span className="text-turmeric" aria-hidden>✺</span>{t('brand')}

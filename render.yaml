@@ -14,8 +14,9 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
+      # the website, and the Android app (Capacitor serves it from https://localhost)
       - key: ALLOWED_ORIGINS
-        value: https://karnatakamatch.onrender.com
+        value: https://karnatakamatch.onrender.com,https://localhost
 
   - type: web
     name: karnatakamatch
