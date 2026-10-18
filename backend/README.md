@@ -1,38 +1,27 @@
-# Backend (Swiss Ephemeris prototype)
+# Backend (FastAPI + Swiss Ephemeris)
 
-This folder contains a minimal FastAPI prototype that uses `pyswisseph` to compute sidereal planetary longitudes, ascendant, and moon nakshatra.
+| Module | Purpose |
+|---|---|
+| `chart.py` | Sidereal chart: planets (with Ketu, nakshatra/pada, retrograde, whole-sign house), Lagna, dasha |
+| `kuja.py` | South Indian Kuja dosha (from Lagna, Moon and Venus, with exemptions) and dosha samya for matching |
+| `dasha.py` | Vimshottari mahadashas and antardashas |
+| `ashtakoota.py` | 36-guna matching, dosha cancellations, Manglik compatibility |
+| `panchang.py` | Daily panchang at local sunrise: Samvatsara, Ayana, Rutu, Maasa (amanta, Adhika), the five limbs with end times, Rahu Kala / Yamaganda / Gulika |
+| `app.py` | HTTP API |
 
-Setup (macOS / zsh)
+## Endpoints
+- `POST /api/chart` with `{ "date": "YYYY-MM-DD", "time": "HH:MM", "lat": 12.97, "lon": 77.59, "tz": "Asia/Kolkata" }`. `tz` is required; optional `"time_known": false` drops the Lagna from the Kuja dosha check. Bad input returns **400**.
+- `POST /api/match` with `{ "groom": <chart payload>, "bride": <chart payload> }`
+- `GET /api/panchang?date=YYYY-MM-DD&lat=..&lon=..&tz=..`
 
-```bash
-cd /Users/shreesh/Desktop/AstrologyApp/backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-Prokerala integration
-
-To enable Prokerala (optional):
-
-1. Get an API key from Prokerala and set it as an environment variable:
-
-```bash
-export PROKERAL_API_KEY="your_key_here"
-```
-
-2. (Optional) set `PROKERAL_API_URL` if your account requires a custom endpoint.
-
-3. Start the server. A new endpoint will be available at `POST /api/chart/prokerala` which the frontend can call.
-
-Note: The proxy maps Prokerala's response to the frontend's expected shape. When you first run it, inspect the JSON returned and adjust `backend/prokerala.py::map_prokerala_to_frontend` if necessary — provider response keys may differ.
-
-Run the server:
+## Setup
 
 ```bash
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt      # runtime deps + pytest
 uvicorn app:app --reload --port 8000
+python -m pytest -q
 ```
 
-Notes and troubleshooting
-- `pyswisseph` (Python binding to Swiss Ephemeris) may require the swisseph ephemeris data files; if you see errors about missing ephemeris files, download the ephemeris (`sepl` files) and set `swe.set_ephe_path('/path/to/ephemeris')` in `app.py`.
-- The endpoint is `POST /api/chart` and accepts JSON: `{ "date":"YYYY-MM-DD", "time":"HH:MM", "lat":12.9716, "lon":77.5946, "tz":"Asia/Kolkata" }`.
+`prokerala.py` is an optional, unverified proxy to the Prokerala API (set `PROKERAL_API_KEY`). It is mounted only when importable, and its response shape does not match the current frontend.
