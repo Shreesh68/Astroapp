@@ -1,4 +1,6 @@
-export const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+const configured = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/+$/, '')
+// A bare host (as Render's `fromService` provides) is served over https
+export const API_BASE = configured.includes('://') ? configured : `https://${configured}`
 
 export class ApiError extends Error {}
 

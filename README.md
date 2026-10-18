@@ -28,6 +28,16 @@ npm run dev          # http://localhost:5173
 
 Set `VITE_API_URL` (see `.env.example`) when the backend is not on `http://127.0.0.1:8000`, and set `ALLOWED_ORIGINS` on the backend to the frontend's origin.
 
+## Deploy (Render, free tier)
+
+`render.yaml` deploys both parts and points them at each other, so there are no URLs to copy by hand.
+
+1. Push this repo to GitHub.
+2. On [render.com](https://render.com): **New → Blueprint**, then pick the repo and branch, then **Apply**.
+3. Wait for both services to finish building. The site is the `karnatakamatch` service, at `https://karnatakamatch….onrender.com`.
+
+On the free plan the API sleeps after about 15 minutes of no traffic. The first request afterwards takes up to about a minute, and the app shows a "waking up" message while it waits.
+
 ## Tests
 
 ```bash

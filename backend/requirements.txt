@@ -1,4 +1,5 @@
 fastapi==0.101.1
+pydantic==2.12.5
 uvicorn[standard]==0.22.0
 # Use an available pyswisseph version — 2.10.3.2 is available on PyPI
 pyswisseph==2.10.3.2

@@ -28,7 +28,8 @@ except ImportError:
 app = FastAPI(title='KarnatakaMatch Ephemeris')
 
 _raw = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:5173')
-_allowed_origins = [o.strip() for o in _raw.split(',') if o.strip()]
+# Hosts given without a scheme (e.g. Render's `fromService` host) are assumed to be https
+_allowed_origins = [o if '://' in o else f'https://{o}' for o in (o.strip().rstrip('/') for o in _raw.split(',')) if o]
 
 app.add_middleware(
     CORSMiddleware,

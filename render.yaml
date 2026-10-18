@@ -1,0 +1,40 @@
+# Render Blueprint: deploys the API and the static site together and wires their URLs.
+# Render dashboard → New → Blueprint → pick this repo.
+services:
+  - type: web
+    name: karnatakamatch-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ALLOWED_ORIGINS
+        fromService:
+          type: web
+          name: karnatakamatch
+          property: host
+
+  - type: web
+    name: karnatakamatch
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    # client-side routes (/birth-chart/result?…) must load the app on refresh
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: karnatakamatch-api
+          property: host
