@@ -7,7 +7,11 @@
 	--k-green: #007A3D;
 }
 
-body { @apply bg-cream text-ink font-sans antialiased; }
+/* never let a wide element push the page sideways; text follows the phone's font size setting */
+html { overflow-x: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { @apply bg-cream text-ink font-sans antialiased; overflow-wrap: anywhere; }
+/* no double-tap zoom on controls (rapid taps on the language toggle used to zoom the page) */
+a, button, input, select, textarea, label, summary { touch-action: manipulation; }
 
 /* Kannada text reads better slightly larger with more line height */
 [data-lang="kn"] body { font-family: 'Noto Sans Kannada', 'Poppins', system-ui, -apple-system, sans-serif; line-height: 1.6; }

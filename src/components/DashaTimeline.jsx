@@ -46,7 +46,7 @@ export default function DashaTimeline({ dasha, tz }) {
       <div className="relative pt-6">
         {nowPct != null && (
           <div className="absolute top-0 bottom-0 z-10 pointer-events-none" style={{ left: `${nowPct}%` }}>
-            <span className="absolute -translate-x-1/2 -top-0.5 text-[10px] font-bold uppercase tracking-wide text-kumkum whitespace-nowrap">{t('you_are_here')}</span>
+            <span className={`absolute -top-0.5 ${nowPct < 20 ? 'left-0' : nowPct > 80 ? 'right-0' : '-translate-x-1/2'} text-[10px] font-bold uppercase tracking-wide text-kumkum whitespace-nowrap`}>{t('you_are_here')}</span>
             <span className="absolute top-4 bottom-0 w-0.5 -translate-x-1/2 bg-kumkum" />
           </div>
         )}

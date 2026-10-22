@@ -5,6 +5,7 @@ Endpoints
 - POST /api/chart     { date: 'YYYY-MM-DD', time: 'HH:MM', lat, lon, tz: 'Asia/Kolkata', ayanamsa?: 'lahiri' }
 - POST /api/match     { groom: <chart payload>, bride: <chart payload> }
 - GET  /api/panchang  ?date=YYYY-MM-DD&lat=..&lon=..&tz=..
+- POST /api/ask       { birth, messages, lang }  → streamed answer from the AI astrologer (see ask.py)
 
 Run from this directory:  uvicorn app:app --reload --port 8000
 """
@@ -19,6 +20,8 @@ from ashtakoota import ashtakoota
 from kuja import kuja_compatibility
 from chart import ChartInputError, compute_chart
 from panchang import compute_panchang
+
+from ask import router as ask_router
 
 try:
     from prokerala import router as prokerala_router
@@ -38,6 +41,8 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+
+app.include_router(ask_router)
 
 if prokerala_router is not None:
     app.include_router(prokerala_router)

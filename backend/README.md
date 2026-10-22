@@ -13,6 +13,7 @@
 - `POST /api/chart` with `{ "date": "YYYY-MM-DD", "time": "HH:MM", "lat": 12.97, "lon": 77.59, "tz": "Asia/Kolkata" }`. `tz` is required; optional `"time_known": false` drops the Lagna from the Kuja dosha check. Bad input returns **400**.
 - `POST /api/match` with `{ "groom": <chart payload>, "bride": <chart payload> }`
 - `GET /api/panchang?date=YYYY-MM-DD&lat=..&lon=..&tz=..`
+- `POST /api/ask` with `{ "birth": <chart payload + name, place>, "messages": [{ "role": "user", "content": "..." }], "lang": "en" | "kn" }` — the AI astrologer (`ask.py`). Streams the answer as server-sent events. Needs `ANTHROPIC_API_KEY`; without it the endpoint returns **503**. Limited to 30 questions per visitor per hour; set `ASK_MODEL` to use a different Claude model.
 
 ## Setup
 
@@ -20,6 +21,7 @@
 cd backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt      # runtime deps + pytest
+export ANTHROPIC_API_KEY=sk-ant-...      # only needed for /api/ask
 uvicorn app:app --reload --port 8000
 python -m pytest -q
 ```

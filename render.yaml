@@ -17,6 +17,9 @@ services:
       # the website, and the Android app (Capacitor serves it from https://localhost)
       - key: ALLOWED_ORIGINS
         value: https://karnatakamatch.onrender.com,https://localhost
+      # the AI astrologer (/api/ask); Render asks for the value when the Blueprint is applied
+      - key: ANTHROPIC_API_KEY
+        sync: false
 
   - type: web
     name: karnatakamatch

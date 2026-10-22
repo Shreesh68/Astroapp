@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
+import { DateTime } from 'luxon'
 import { useLanguage } from '../contexts/LanguageContext'
-import { getPanchang } from '../lib/api'
+import { loadPanchang, prefetchAhead, readPanchang } from '../lib/panchangCache'
+import { onResume } from '../lib/platform'
 import { AYANAS_KN, KARANAS_KN, MAASAS_KN, YOGAS_KN, NAKSHATRAS, RUTUS_KN, SAMVATSARAS_KN, VARAS_KN, pick, tithiLabel } from '../lib/astro'
-import { fmtClock } from '../lib/dates'
+import { fmtClock, todayIn } from '../lib/dates'
 
 const PLACE_KEY = 'km_panchang_place'
 export const DEFAULT_PLACE = { name: 'Bengaluru', lat: 12.9716, lon: 77.5946, tz: 'Asia/Kolkata' }
@@ -20,18 +22,124 @@ export function savePanchangPlace(place) {
   try { localStorage.setItem(PLACE_KEY, JSON.stringify(place)) } catch { /* ignore */ }
 }
 
+/** Today's date in the place's time zone; rolls over at local midnight and when the app resumes. */
+export function useToday(tz) {
+  const [today, setToday] = useState(() => todayIn(tz))
+  useEffect(() => {
+    const check = () => setToday(todayIn(tz))
+    check()
+    let timer
+    const scheduleMidnight = () => {
+      const now = DateTime.now().setZone(tz)
+      const ms = now.plus({ days: 1 }).startOf('day').diff(now).as('milliseconds') + 1000
+      timer = setTimeout(() => { check(); scheduleMidnight() }, ms)
+    }
+    scheduleMidnight()
+    // timers pause while the phone sleeps, so also re-check whenever the user returns
+    const off = onResume(check)
+    window.addEventListener('online', check)
+    return () => { clearTimeout(timer); off(); window.removeEventListener('online', check) }
+  }, [tz])
+  return today
+}
+
+/** Re-render every minute (keeps "happening now" markers current). */
+function useMinuteTick() {
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setTick(n => n + 1), 60_000)
+    const off = onResume(() => setTick(n => n + 1))
+    return () => { clearInterval(id); off() }
+  }, [])
+}
+
+const RETRY_MS = [5_000, 15_000, 30_000, 60_000]
+
+/**
+ * Panchang for a date and place: saved copy first (instant, offline), otherwise fetched.
+ * Failed loads retry with back-off, and immediately when the connection or the app comes back.
+ * Once a day is shown, the following week is saved in the background.
+ */
 export function usePanchang(date, place) {
-  const [state, setState] = useState({ data: null, error: null, loading: true })
-  const load = useCallback(() => {
+  const [state, setState] = useState(() => {
+    const saved = readPanchang(date, place)
+    return { data: saved, error: null, loading: !saved }
+  })
+  const [attempt, setAttempt] = useState(0)
+
+  useEffect(() => {
     let alive = true
-    setState(s => ({ ...s, loading: true, error: null }))
-    getPanchang({ date, lat: place.lat, lon: place.lon, tz: place.tz })
-      .then(data => alive && setState({ data, error: null, loading: false }))
-      .catch(error => alive && setState({ data: null, error, loading: false }))
-    return () => { alive = false }
-  }, [date, place.lat, place.lon, place.tz])
-  useEffect(load, [load])
-  return { ...state, reload: load }
+    let timer
+    let inFlight = false
+    let failures = 0
+
+    function run() {
+      if (inFlight) return
+      inFlight = true
+      clearTimeout(timer)
+      setState(s => ({ ...s, loading: true }))
+      loadPanchang(date, place)
+        .then(data => {
+          if (!alive) return
+          setState({ data, error: null, loading: false })
+          prefetchAhead(date, place)
+        })
+        .catch(error => {
+          if (!alive) return
+          setState({ data: null, error, loading: false })
+          timer = setTimeout(run, RETRY_MS[Math.min(failures++, RETRY_MS.length - 1)])
+        })
+        .finally(() => { inFlight = false })
+    }
+
+    const saved = readPanchang(date, place)
+    if (saved) {
+      setState({ data: saved, error: null, loading: false })
+      prefetchAhead(date, place)
+    } else {
+      setState({ data: null, error: null, loading: true }) // never show another day's data
+      run()
+    }
+    const retryNow = () => { if (alive && !readPanchang(date, place)) { failures = 0; run() } }
+    window.addEventListener('online', retryNow)
+    const off = onResume(retryNow)
+    return () => { alive = false; clearTimeout(timer); window.removeEventListener('online', retryNow); off() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, place.lat, place.lon, place.tz, attempt])
+
+  const reload = useCallback(() => setAttempt(a => a + 1), [])
+  return { ...state, reload }
+}
+
+/** Loading / offline / error states for a Panchang that isn't available yet. */
+export function PanchangStatus({ loading, error, onRetry }) {
+  const { t } = useLanguage()
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    if (!loading) return
+    setSlow(false)
+    const id = setTimeout(() => setSlow(true), 5000)
+    return () => clearTimeout(id)
+  }, [loading])
+
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false
+  return (
+    <div role="status" aria-live="polite" className="rounded-xl bg-cream px-4 py-6 text-center text-sm">
+      {loading && (
+        <>
+          <p className="font-medium text-ink-700 animate-pulse">{t('loading_panchang')}</p>
+          {slow && <p className="mt-2 text-ink-500">{t('loading_wake')}</p>}
+        </>
+      )}
+      {!loading && error && (
+        <>
+          <p className="font-medium text-ink-700">{offline ? t('p_offline') : t('p_failed')}</p>
+          <p className="mt-1 text-ink-500">{t('p_auto_retry')}</p>
+          <button onClick={onRetry} className="mt-3 font-semibold text-kumkum underline">{t('retry')}</button>
+        </>
+      )}
+    </div>
+  )
 }
 
 const isNow = ({ start, end }) => {
@@ -41,6 +149,7 @@ const isNow = ({ start, end }) => {
 
 export default function PanchangCard({ data, compact = false }) {
   const { t, lang } = useLanguage()
+  useMinuteTick()
   if (!data) return null
   const vara = lang === 'kn' ? VARAS_KN[data.vara.index] : data.vara.name
   const until = iso => (iso ? t('p_until', { time: fmtClock(iso, lang) }) : '')

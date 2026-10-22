@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import Home from './pages/Home'
 import BirthChart from './pages/BirthChart'
 import ChartResultPage from './pages/ChartResultPage'
@@ -10,10 +10,17 @@ import About from './pages/About'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import { warmUp } from './lib/api'
+import { onBackButton } from './lib/platform'
 
 function ScrollToTop() {
   const { pathname, search } = useLocation()
   useEffect(() => { window.scrollTo(0, 0) }, [pathname, search])
+  return null
+}
+
+function BackButton() {
+  const navigate = useNavigate()
+  useEffect(() => onBackButton(() => navigate(-1), () => navigate('/', { replace: true })), [navigate])
   return null
 }
 
@@ -29,7 +36,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
-      <div className="min-h-screen flex flex-col">
+      <BackButton />
+      <div className="min-h-screen flex flex-col overflow-x-clip">
         <Header />
         <main className="flex-grow container mx-auto px-4 py-6 sm:py-10">
           <Routes>

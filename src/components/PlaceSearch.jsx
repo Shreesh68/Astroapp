@@ -2,9 +2,10 @@ import { useState, useRef, useEffect, useId } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 
 /**
- * PlaceSearch — place autocomplete using Nominatim (OpenStreetMap). No API key required.
- * Nominatim's usage policy allows ~1 request/second, hence the debounce; for heavy traffic,
- * proxy it through the backend or switch to a commercial geocoder.
+ * PlaceSearch — place autocomplete over OpenStreetMap data. No API key required.
+ * Photon matches partial words as you type ("chitrad" → Chitradurga) and covers towns and
+ * villages across India; Nominatim is the fallback for what Photon can't match, such as names
+ * typed in Kannada script.
  *
  * Props:
  *   value — currently selected { lat, lon, name, display_name } or null
@@ -42,7 +43,7 @@ export default function PlaceSearch({ value = null, onLocationSelect, autoFocus 
     setActive(-1)
     clearTimeout(debounceRef.current)
     if (q.trim().length < 3) { setSuggestions([]); return }
-    debounceRef.current = setTimeout(() => fetchSuggestions(q.trim()), 450)
+    debounceRef.current = setTimeout(() => fetchSuggestions(q.trim()), 300)
   }
 
   async function fetchSuggestions(q) {
@@ -51,12 +52,12 @@ export default function PlaceSearch({ value = null, onLocationSelect, autoFocus 
     abortRef.current = ctrl
     setFetching(true)
     try {
-      const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({
-        q, format: 'json', limit: '6', addressdetails: '1', countrycodes: 'in',
-      })}`
-      const res = await fetch(url, { signal: ctrl.signal })
-      const data = await res.json()
-      setSuggestions(Array.isArray(data) ? data : [])
+      let places = await searchPhoton(q, ctrl.signal).catch(err => {
+        if (err.name === 'AbortError') throw err
+        return []
+      })
+      if (places.length === 0) places = await searchNominatim(q, ctrl.signal)
+      setSuggestions(places)
       setSearched(true)
       setOpen(true)
     } catch (err) {
@@ -67,11 +68,10 @@ export default function PlaceSearch({ value = null, onLocationSelect, autoFocus 
   }
 
   function selectItem(item) {
-    const name = item.name || item.display_name.split(',')[0]
-    setQuery(name)
+    setQuery(item.name)
     setSuggestions([])
     setOpen(false)
-    onLocationSelect({ lat: parseFloat(item.lat), lon: parseFloat(item.lon), name, display_name: item.display_name })
+    onLocationSelect({ lat: item.lat, lon: item.lon, name: item.name, display_name: item.display_name })
   }
 
   function clear() {
@@ -125,7 +125,7 @@ export default function PlaceSearch({ value = null, onLocationSelect, autoFocus 
             const parts = item.display_name.split(', ')
             return (
               <li
-                key={item.place_id ?? i}
+                key={item.id}
                 id={`${listId}-${i}`}
                 role="option"
                 aria-selected={i === active}
@@ -161,4 +161,50 @@ export default function PlaceSearch({ value = null, onLocationSelect, autoFocus 
       )}
     </div>
   )
+}
+
+// India, so that results stay inside the country even for names shared with neighbours
+const INDIA_BBOX = '68,6,98,37'
+// towns and cities first, so "chitrad" offers Chitradurga before a village called Chitrada
+const PLACE_RANK = { city: 0, town: 0, state: 1, district: 1, county: 1, suburb: 2, village: 3 }
+
+async function searchPhoton(q, signal) {
+  const url = `https://photon.komoot.io/api/?${new URLSearchParams({
+    q, limit: '15', bbox: INDIA_BBOX, osm_tag: 'place', lang: 'en',
+  })}`
+  const res = await fetch(url, { signal })
+  if (!res.ok) throw new Error(`Photon ${res.status}`)
+  const data = await res.json()
+  return (data.features || [])
+    .filter(f => f.properties?.countrycode === 'IN' && f.properties.name)
+    .map(f => {
+      const p = f.properties
+      const [lon, lat] = f.geometry.coordinates
+      const area = [p.city, p.county, p.district, p.state].filter(x => x && x !== p.name)
+      return {
+        id: `${p.osm_type}${p.osm_id}`,
+        name: p.name,
+        lat, lon,
+        display_name: [p.name, ...new Set(area), 'India'].join(', '),
+        rank: PLACE_RANK[p.osm_value] ?? 4,
+      }
+    })
+    .sort((a, b) => a.rank - b.rank)
+    .slice(0, 8)
+}
+
+async function searchNominatim(q, signal) {
+  const url = `https://nominatim.openstreetmap.org/search?${new URLSearchParams({
+    q, format: 'json', limit: '6', countrycodes: 'in',
+  })}`
+  const res = await fetch(url, { signal })
+  if (!res.ok) return []
+  const data = await res.json()
+  return (Array.isArray(data) ? data : []).map(item => ({
+    id: item.place_id,
+    name: item.name || item.display_name.split(',')[0],
+    lat: parseFloat(item.lat),
+    lon: parseFloat(item.lon),
+    display_name: item.display_name,
+  }))
 }
