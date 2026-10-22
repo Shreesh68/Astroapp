@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import BirthWizard from '../components/BirthWizard'
 import { useLanguage } from '../contexts/LanguageContext'
-import { saveProfile } from '../lib/profiles'
+import { rememberGender, saveProfile } from '../lib/profiles'
 import { chartPath } from '../lib/share'
 
 export default function BirthChart(){
@@ -10,6 +10,7 @@ export default function BirthChart(){
 
   function submit(profile, { save }) {
     if (save) saveProfile(profile)
+    else rememberGender(profile)
     navigate(chartPath(profile))
   }
 

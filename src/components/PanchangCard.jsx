@@ -210,7 +210,7 @@ export default function PanchangCard({ data, compact = false }) {
 
       <div className="mt-4">
         {!compact && <h3 className="text-sm font-semibold text-ink-700 mb-2">{t('p_inauspicious')}</h3>}
-        <ul className={`grid gap-2 ${compact ? '' : 'sm:grid-cols-3'}`}>
+        <ul className={`grid grid-cols-1 gap-2 ${compact ? '' : 'sm:grid-cols-3'}`}>
           {shownBad.map(b => {
             const now = isNow(b)
             return (

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 /**
  * A profile is a person's birth details:
- * { id, name, date: 'YYYY-MM-DD', time: 'HH:MM', timeUnknown, place, lat, lon, tz }
+ * { id, name, gender: 'male' | 'female' | '' (older profiles), date: 'YYYY-MM-DD', time: 'HH:MM', timeUnknown, place, lat, lon, tz }
  * Saved profiles live in this browser only (localStorage).
  */
 const KEY = 'km_profiles'
@@ -35,6 +35,20 @@ export function saveProfile(profile) {
   write([saved, ...list])
   return saved
 }
+
+/** Store a gender learned later (e.g. picking someone as the groom) on a profile saved without one. */
+export function rememberGender(profile) {
+  if (!profile?.gender) return
+  const saved = read().find(p => (profile.id ? p.id === profile.id : p.name === profile.name && samePerson(p, profile)))
+  if (saved && saved.gender !== profile.gender) updateProfile(saved.id, { gender: profile.gender })
+}
+
+export function updateProfile(id, patch) {
+  write(read().map(p => (p.id === id ? { ...p, ...patch } : p)))
+}
+
+/** Same birth moment, whatever the name or spelling of the place — i.e. the same person. */
+export const samePerson = (a, b) => !!a && !!b && a.date === b.date && a.time === b.time && !!a.timeUnknown === !!b.timeUnknown
 
 export function removeProfile(id) {
   write(read().filter(p => p.id !== id))

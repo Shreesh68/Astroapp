@@ -5,7 +5,7 @@ import { isNativeApp, publicUrl } from './platform'
  * Birth details ⇄ URL query params, so result pages survive refresh and can be shared.
  * Keys are short to keep links WhatsApp-friendly; `prefix` lets two people share one URL.
  */
-const FIELDS = { n: 'name', d: 'date', t: 'time', p: 'place', lat: 'lat', lon: 'lon', tz: 'tz' }
+const FIELDS = { n: 'name', s: 'gender', d: 'date', t: 'time', p: 'place', lat: 'lat', lon: 'lon', tz: 'tz' }
 
 export function profileToParams(profile, prefix = '', params = new URLSearchParams()) {
   for (const [k, field] of Object.entries(FIELDS)) {
@@ -20,6 +20,7 @@ export function paramsToProfile(params, prefix = '') {
   const get = k => params.get(prefix + k)
   const profile = {
     name: get('n') || '',
+    gender: ['male', 'female'].includes(get('s')) ? get('s') : '',
     date: get('d'),
     time: get('t') || '12:00',
     timeUnknown: get('u') === '1',

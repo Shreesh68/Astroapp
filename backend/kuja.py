@@ -43,21 +43,17 @@ def aspects(planet, from_sign, to_sign):
 
 
 def general_exemption(signs, asc_sign):
-    """Exemptions that hold whichever house Mars occupies. Returns the reason or None.
-    asc_sign is None when the birth time (and so the Lagna) is unknown."""
+    """Exemptions that hold whichever house Mars occupies (Jataka Parijata: Jupiter or Mercury with or
+    aspecting Mars; Karka/Simha Lagna, for which Mars is a yogakaraka). Returns the reason or None.
+    asc_sign is None when the birth time (and so the Lagna) is unknown. Mars in its own or exalted
+    sign cancels only where HOUSE_SIGN_EXEMPTIONS says so."""
     mars = signs['mars']
     if asc_sign in (KARKA, SIMHA):
         return 'Lagna is Karka or Simha, for which Mars is a yogakaraka'
-    if mars in (MESHA, VRISCHIKA):
-        return 'Mars is in its own sign'
-    if mars == MAKARA:
-        return 'Mars is exalted in Makara'
-    if mars in (KARKA, SIMHA, KUMBHA):
-        return 'Mars is in Karka, Simha or Kumbha'
-    for p, label in (('jupiter', 'Jupiter'), ('moon', 'the Moon'), ('sun', 'the Sun'), ('mercury', 'Mercury')):
+    for p, label in (('jupiter', 'Jupiter'), ('mercury', 'Mercury')):
         if signs[p] == mars:
             return f'Mars is conjunct {label}'
-    for p, label in (('jupiter', 'Jupiter'), ('sun', 'the Sun'), ('mercury', 'Mercury')):
+    for p, label in (('jupiter', 'Jupiter'), ('mercury', 'Mercury')):
         if aspects(p, signs[p], mars):
             return f'Mars is aspected by {label}'
     return None
@@ -85,7 +81,8 @@ def kuja_dosha(signs, asc_sign, time_known=True):
 
     active = [r['from'] for r in refs if r['active']]
     in_houses = [r for r in refs if r['dosha_house']]
-    strength = ['none', 'mild', 'moderate', 'strong'][len(active)]
+    # 'cancelled': Mars is in a dosha house, but every one of them is exempt
+    strength = ['none', 'mild', 'moderate', 'strong'][len(active)] if active or not in_houses else 'cancelled'
     by_ref = {r['from']: r for r in refs}
     return {
         'present': bool(active),

@@ -58,12 +58,20 @@ def test_hand_worked_example():
     assert r['doshas'] == [{'key': 'bhakoot', 'cancelled_reason': None}]
 
 
-def test_same_nakshatra_same_pada_has_uncancelled_nadi_dosha():
+def test_same_nakshatra_same_pada_is_not_recommended_whatever_the_score():
     r = ashtakoota(moon_at(7, 2), moon_at(7, 2))
     s = scores(r)
     assert s['nadi'] == 0 and s['tara'] == 3 and s['yoni'] == 4 and s['gana'] == 6 and s['bhakoot'] == 7
     assert r['total'] == 28
-    assert r['doshas'] == [{'key': 'nadi', 'cancelled_reason': None}]
+    assert r['verdict'] == 'not_recommended' and r['verdict_reason'] == 'ekanakshatra'
+    assert r['doshas'] == [{'key': 'nadi', 'cancelled_reason': None},
+                           {'key': 'ekanakshatra', 'cancelled_reason': None, 'same_rashi': True, 'same_pada': True}]
+
+
+def test_shared_star_outside_permitted_list_is_not_recommended():
+    r = ashtakoota(moon_at(2, 1), moon_at(2, 3))  # Krittika, different padas
+    assert r['verdict'] == 'not_recommended'
+    assert not next(d for d in r['doshas'] if d['key'] == 'ekanakshatra')['cancelled_reason']
 
 
 def test_nadi_dosha_cancelled_for_different_padas():

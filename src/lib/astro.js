@@ -162,5 +162,6 @@ const REASONS = {
   'Same nakshatra but different padas':   'ಒಂದೇ ನಕ್ಷತ್ರ, ಬೇರೆ ಪಾದಗಳು',
   'Both rashis share the same lord':      'ಎರಡೂ ರಾಶಿಗಳ ಅಧಿಪತಿ ಒಬ್ಬನೇ',
   'Rashi lords are mutual friends':       'ರಾಶ್ಯಾಧಿಪತಿಗಳು ಪರಸ್ಪರ ಮಿತ್ರರು',
+  'Shared nakshatra is a permitted one and the padas differ': 'ಒಂದೇ ನಕ್ಷತ್ರ ಅನುಮತಿಸಿದ ನಕ್ಷತ್ರಗಳಲ್ಲಿ ಒಂದು, ಪಾದಗಳು ಬೇರೆ',
 }
 export const reasonText = (reason, lang) => (lang === 'kn' && REASONS[reason]) || reason

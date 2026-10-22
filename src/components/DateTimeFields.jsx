@@ -59,7 +59,7 @@ export function DateFields({ value, onChange, autoFocus }) {
   }
 
   return (
-    <div className="grid grid-cols-[1fr_1fr_1.5fr] gap-3 max-w-sm">
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.5fr)] gap-3 max-w-sm">
       <Segment inputRef={dRef} label={t('f_day')} placeholder="DD" maxLength={2} value={parts.d} autoFocus={autoFocus}
         onBlur={() => latest.current.d.length === 1 && update({ d: pad(latest.current.d) })}
         onChange={v => {

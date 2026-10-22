@@ -110,6 +110,11 @@ NADI_NAMES = ['Adi', 'Madhya', 'Antya']
 NADI_OF_NAKSHATRA = [0, 1, 2, 2, 1, 0, 0, 1, 2, 2, 1, 0, 0, 1, 2, 2, 1, 0, 0, 1, 2, 2, 1, 0, 0, 1, 2]
 
 
+# Ekanakshatra: a shared birth star is discouraged. It is tolerated only for these nakshatras, and only
+# when the padas differ (Rohini, Ardra, Pushya, Magha, Vishakha, Shravana, Uttara Bhadrapada, Revati).
+SHARED_STAR_PERMITTED = {3, 5, 7, 9, 15, 21, 25, 26}
+
+
 def describe_moon(lon):
     nak, pada, _ = nakshatra_of(lon)
     r = rashi_index(lon)
@@ -178,9 +183,14 @@ def ashtakoota(groom_moon_lon, bride_moon_lon):
             cancel = 'Same rashi but different nakshatras'
         elif gn == bn and gr != br:
             cancel = 'Same nakshatra but different rashis'
-        elif gn == bn and g['pada'] != b['pada']:
+        elif gn == bn and g['pada'] != b['pada'] and gn in SHARED_STAR_PERMITTED:
             cancel = 'Same nakshatra but different padas'
         doshas.append({'key': 'nadi', 'cancelled_reason': cancel})
+    if gn == bn:
+        permitted = gn in SHARED_STAR_PERMITTED and g['pada'] != b['pada']
+        doshas.append({'key': 'ekanakshatra',
+                       'cancelled_reason': 'Shared nakshatra is a permitted one and the padas differ' if permitted else None,
+                       'same_rashi': gr == br, 'same_pada': g['pada'] == b['pada']})
     if bhakoot_bad:
         lg, lb = g['rashi_lord'], b['rashi_lord']
         cancel = None
@@ -193,12 +203,15 @@ def ashtakoota(groom_moon_lon, bride_moon_lon):
         doshas.append({'key': 'gana', 'cancelled_reason': None})
 
     total = sum(k['score'] for k in kootas)
+    ekanakshatra = any(d['key'] == 'ekanakshatra' and not d['cancelled_reason'] for d in doshas)
     return {
         'groom': g,
         'bride': b,
         'kootas': kootas,
         'total': total,
         'max': 36,
-        'verdict': verdict(total),
+        # a shared birth star that tradition does not permit outweighs any guna score
+        'verdict': 'not_recommended' if ekanakshatra else verdict(total),
+        'verdict_reason': 'ekanakshatra' if ekanakshatra else None,
         'doshas': doshas,
     }

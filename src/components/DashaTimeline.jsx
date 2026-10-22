@@ -83,7 +83,7 @@ export default function DashaTimeline({ dasha, tz }) {
             <span className="text-xs text-ink-500">{fmtMonthYear(selected.start, tz, lang)} – {fmtMonthYear(selected.end, tz, lang)}</span>
           </div>
           <p className="text-sm text-ink-500 mb-3">{PLANETS[selected.lord].means[lang === 'kn' ? 'kn' : 'en']}</p>
-          <ol className="grid sm:grid-cols-3 gap-2">
+          <ol className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {selected.antardashas.map(a => {
               const active = ms(a.start) <= now && now < ms(a.end)
               return (

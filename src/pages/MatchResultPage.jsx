@@ -3,6 +3,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { getMatch } from '../lib/api'
 import { KOOTAS, VERDICTS, nakName, pick, planetName, rashiName, reasonText } from '../lib/astro'
 import { chartPath, paramsToProfile } from '../lib/share'
+import { samePerson } from '../lib/profiles'
 import { useAsync } from '../lib/useAsync'
 import GunaMeter from '../components/GunaMeter'
 import SouthIndianChart from '../components/SouthIndianChart'
@@ -22,6 +23,8 @@ export default function MatchResultPage() {
   const { data, error, loading, retry } = useAsync(() => (groom && bride ? getMatch(groom, bride) : null), key)
 
   if (!groom || !bride) return <ErrorState message={t('not_found')} backTo="/matchmaking" />
+  if (samePerson(groom, bride)) return <ErrorState message={t('match_same_person')} backTo="/matchmaking" />
+  if (groom.gender === 'female' || bride.gender === 'male') return <ErrorState message={t('match_wrong_gender')} backTo="/matchmaking" />
   if (loading) return <LoadingOverlay message={t('loading_match')} />
   if (error) return <ErrorState message={error.message} onRetry={retry} backTo="/matchmaking" />
   return <MatchView groom={groom} bride={bride} data={data} />
@@ -46,13 +49,18 @@ function MatchView({ groom, bride, data }) {
         <p className={`mt-4 font-display text-2xl font-semibold ${verdict.tone === 'good' ? 'text-leaf' : verdict.tone === 'bad' ? 'text-kumkum' : 'text-turmeric-700'}`}>
           {pick(verdict, lang)}
         </p>
+        {m.verdict_reason === 'ekanakshatra' && (
+          <p className="mt-2 mx-auto max-w-lg rounded-xl bg-kumkum-50 px-4 py-3 text-sm text-kumkum">
+            {t('match_ek_reason', { nak: nakName(m.groom.nakshatra_index, lang) })}
+          </p>
+        )}
         <p className="mt-2 text-sm text-ink-500 max-w-lg mx-auto">{t('match_disclaimer')}</p>
       </section>
 
       {/* Kootas */}
       <section>
         <h2 className="section-title">{t('match_kootas')}</h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {m.kootas.map((k, i) => {
             const info = KOOTAS[k.key]
             const frac = k.score / k.max
@@ -94,6 +102,9 @@ function MatchView({ groom, bride, data }) {
           <li className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-cream px-4 py-3">
             <span className="font-semibold">{t('match_manglik')}</span>
             <span className={`${m.manglik.ok ? 'chip-good' : 'chip-bad'} !whitespace-normal`}>{manglikText(m.manglik, t, lang)}</span>
+            <span className="basis-full text-sm text-ink-500">
+              {t('mm_each', { groom: t(`kuja_${data.groom_chart.manglik.strength}`), bride: t(`kuja_${data.bride_chart.manglik.strength}`) })}
+            </span>
           </li>
         </ul>
       </section>
@@ -101,7 +112,7 @@ function MatchView({ groom, bride, data }) {
       {/* Charts */}
       <section className="card card-pad">
         <h2 className="section-title">{t('match_charts')}</h2>
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[[groom, data.groom_chart, t('match_groom')], [bride, data.bride_chart, t('match_bride')]].map(([p, c, role]) => (
             <div key={role}>
               <SouthIndianChart ephem={c} lang={lang} title={p.name} />

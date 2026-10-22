@@ -63,9 +63,22 @@ def test_jupiter_aspect_cancels():
     assert not m['present'] and m['cancelled_reason'] == 'Mars is aspected by Jupiter'
 
 
-def test_mars_in_kumbha_is_exempt():
+def test_own_sign_cancels_only_where_the_house_table_says():
+    # Tula lagna, Mars in Vrischika: 2nd house — own sign does not exempt the 2nd
+    m = kuja_dosha(chart(VRISCHIKA, moon=SIMHA, venus=MITHUNA, jupiter=MITHUNA, mercury=SIMHA), TULA)
+    assert m['present'] and ref(m, 'lagna')['active']
+    # …but from the Moon in Simha, Vrischika is the 4th, which the table exempts
+    assert ref(m, 'moon')['dosha_house'] and not ref(m, 'moon')['active']
+
+
+def test_all_dosha_houses_exempt_is_reported_as_cancelled():
+    m = kuja_dosha(chart(MEENA, moon=MITHUNA, venus=MITHUNA, jupiter=MEENA), KANYA)
+    assert not m['present'] and m['strength'] == 'cancelled'
+
+
+def test_mars_in_kumbha_is_no_longer_exempt():
     m = kuja_dosha(chart(KUMBHA, moon=SIMHA, venus=SIMHA), SIMHA + 1)  # Kanya lagna → 6th; Moon Simha → 7th
-    assert ref(m, 'moon')['dosha_house'] and not m['present']
+    assert ref(m, 'moon')['active'] and m['present']
 
 
 def test_unknown_time_ignores_lagna():

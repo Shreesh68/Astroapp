@@ -3,35 +3,43 @@ import { DateTime } from 'luxon'
 import PlaceSearch from './PlaceSearch'
 import { DateFields, TimeFields } from './DateTimeFields'
 import { useLanguage } from '../contexts/LanguageContext'
-import { useProfiles } from '../lib/profiles'
+import { samePerson, useProfiles } from '../lib/profiles'
 import { getTimezone } from '../lib/geocode'
 import { fmtLongDate, fmtTime } from '../lib/dates'
 
-const STEPS = ['name', 'date', 'time', 'place', 'review']
+// gender is asked only when drawing a chart: a groom is male and a bride female
+const STEPS = { chart: ['name', 'gender', 'date', 'time', 'place', 'review'], other: ['name', 'date', 'time', 'place', 'review'] }
+const ROLE_GENDER = { groom: 'male', bride: 'female' }
 
-const EMPTY = { name: '', date: '', time: '', timeUnknown: false, place: '', lat: null, lon: null, tz: null }
+const EMPTY = { name: '', gender: '', date: '', time: '', timeUnknown: false, place: '', lat: null, lon: null, tz: null }
 
 /**
  * One-question-at-a-time birth details form.
  *   role: 'chart' | 'groom' | 'bride'   — changes the wording
  *   initial: a profile to start from (skips straight to review)
+ *   other: the person already chosen for the other side of a match (never offered again)
  *   onSubmit(profile, { save })
  */
-export default function BirthWizard({ role = 'chart', initial = null, onSubmit, excludeId = null }) {
+export default function BirthWizard({ role = 'chart', initial = null, onSubmit, other = null }) {
   const { t, lang } = useLanguage()
   const { profiles } = useProfiles()
-  const choices = profiles.filter(p => p.id !== excludeId)
+  const STEPS_FOR = STEPS[role === 'chart' ? 'chart' : 'other']
+  const roleGender = ROLE_GENDER[role]
+  // a groom is picked only from men and a bride only from women (people saved before gender was asked
+  // are offered on both sides); never the person already on the other side
+  const choices = profiles.filter(p => !samePerson(p, other) && (!roleGender || !p.gender || p.gender === roleGender))
   const [data, setData] = useState(initial || EMPTY)
   const [step, setStep] = useState(initial ? 'review' : choices.length ? 'pick' : 'name')
   const [error, setError] = useState('')
   const [save, setSave] = useState(!initial?.id)
 
   const name = data.name.trim() || '…'
-  const stepIndex = STEPS.indexOf(step)
+  const stepIndex = STEPS_FOR.indexOf(step)
   const set = patch => { setData(d => ({ ...d, ...patch })); setError('') }
 
   function validate(s) {
     if (s === 'name' && !data.name.trim()) return t('err_name')
+    if (s === 'gender' && !data.gender) return t('err_gender')
     if (s === 'date') {
       const dt = DateTime.fromISO(data.date)
       if (!data.date || !dt.isValid || dt.year < 1800) return t('err_date')
@@ -45,19 +53,19 @@ export default function BirthWizard({ role = 'chart', initial = null, onSubmit, 
   function next(e) {
     e?.preventDefault()
     if (step === 'review') {
-      const bad = STEPS.slice(0, -1).find(s => validate(s))
+      const bad = STEPS_FOR.slice(0, -1).find(s => validate(s))
       if (bad) { setStep(bad); setError(validate(bad)); return }
-      onSubmit({ ...data, name: data.name.trim(), time: data.timeUnknown ? '12:00' : data.time }, { save })
+      onSubmit({ ...data, gender: roleGender || data.gender, name: data.name.trim(), time: data.timeUnknown ? '12:00' : data.time }, { save })
       return
     }
     const err = validate(step)
     if (err) { setError(err); return }
-    setStep(STEPS[stepIndex + 1])
+    setStep(STEPS_FOR[stepIndex + 1])
   }
 
   function back() {
     setError('')
-    if (stepIndex > 0) setStep(STEPS[stepIndex - 1])
+    if (stepIndex > 0) setStep(STEPS_FOR[stepIndex - 1])
     else if (choices.length) setStep('pick')
   }
 
@@ -78,8 +86,8 @@ export default function BirthWizard({ role = 'chart', initial = null, onSubmit, 
   return (
     <form onSubmit={next} className="card card-pad sm:p-8" noValidate>
       {step !== 'pick' && (
-        <div className="flex items-center gap-3 mb-6" aria-label={t('wiz_step', { n: stepIndex + 1, total: STEPS.length })}>
-          {STEPS.map((s, i) => (
+        <div className="flex items-center gap-3 mb-6" aria-label={t('wiz_step', { n: stepIndex + 1, total: STEPS_FOR.length })}>
+          {STEPS_FOR.map((s, i) => (
             <span key={s} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${i <= stepIndex ? 'bg-turmeric' : 'bg-cream-200'}`} />
           ))}
         </div>
@@ -89,7 +97,7 @@ export default function BirthWizard({ role = 'chart', initial = null, onSubmit, 
         {step === 'pick' && (
           <>
             <Question>{t('wiz_pick_title')}</Question>
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {choices.map(p => (
                 <button type="button" key={p.id} onClick={() => pickProfile(p)}
                   className="text-left rounded-xl border border-cream-200 bg-white px-4 py-3 hover:border-turmeric hover:bg-cream transition">
@@ -115,6 +123,20 @@ export default function BirthWizard({ role = 'chart', initial = null, onSubmit, 
             <Question>{nameTitle}</Question>
             <input className="input text-lg" autoFocus value={data.name} placeholder={t('wiz_name_ph')}
               onChange={e => set({ name: e.target.value })} autoComplete="name" />
+          </>
+        )}
+
+        {step === 'gender' && (
+          <>
+            <Question>{t('wiz_gender_title', { name })}</Question>
+            <div className="grid grid-cols-2 gap-3">
+              {['male', 'female'].map(g => (
+                <button type="button" key={g} onClick={() => { set({ gender: g }); setStep(STEPS_FOR[stepIndex + 1]) }}
+                  className={`rounded-2xl border-2 px-4 py-6 text-lg font-semibold transition ${data.gender === g ? 'border-kumkum bg-kumkum-50' : 'border-cream-200 hover:border-turmeric hover:bg-cream'}`}>
+                  {t(`gender_${g}`)}
+                </button>
+              ))}
+            </div>
           </>
         )}
 
@@ -159,6 +181,7 @@ export default function BirthWizard({ role = 'chart', initial = null, onSubmit, 
             <ul className="divide-y divide-cream-100 rounded-xl border border-cream-200">
               {[
                 ['name', data.name],
+                ...(role === 'chart' ? [['gender', data.gender ? t(`gender_${data.gender}`) : t('gender_unset')]] : []),
                 ['date', data.date && fmtLongDate(data.date, lang)],
                 ['time', data.timeUnknown ? t('time_unknown_short') : data.time && fmtTime(data.time, lang)],
                 ['place', data.place],

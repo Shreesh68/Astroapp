@@ -9,7 +9,6 @@ import Panchang from './pages/Panchang'
 import About from './pages/About'
 import Header from './components/Header'
 import Footer from './components/Footer'
-import { warmUp } from './lib/api'
 import { onBackButton } from './lib/platform'
 
 function ScrollToTop() {
@@ -26,7 +25,6 @@ function BackButton() {
 
 export default function App() {
   useEffect(() => {
-    warmUp()
     // closed <details> sections would be missing from the printed report
     const openAll = () => document.querySelectorAll('details').forEach(d => { d.open = true })
     window.addEventListener('beforeprint', openAll)

@@ -11,7 +11,6 @@ import SouthIndianChart, { planetsBySign } from '../components/SouthIndianChart'
 import DashaTimeline, { currentDasha } from '../components/DashaTimeline'
 import LoadingOverlay, { ErrorState } from '../components/LoadingOverlay'
 import ShareBar from '../components/ShareBar'
-import AskAstrologer from '../components/AskAstrologer'
 
 export default function ChartResultPage() {
   const [params] = useSearchParams()
@@ -79,10 +78,8 @@ function ChartView({ profile, chart }) {
         ))}
       </section>
 
-      <AskAstrologer profile={profile} />
-
       {/* Interactive chart */}
-      <section className="card card-pad grid md:grid-cols-2 gap-6 items-start">
+      <section className="card card-pad grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
         <div>
           <h2 className="section-title">{t('chart_title')}</h2>
           <SouthIndianChart ephem={chart} lang={lang} size="lg" selected={selected} onSelect={setSelected} />
@@ -179,7 +176,7 @@ function HouseDetail({ chart, sign }) {
 
 function ManglikCard({ manglik: m }) {
   const { t, lang } = useLanguage()
-  const chip = { none: 'chip-good', mild: 'chip-warn', moderate: 'chip-bad', strong: 'chip-bad' }[m.strength]
+  const chip = { none: 'chip-good', cancelled: 'chip-good', mild: 'chip-warn', moderate: 'chip-bad', strong: 'chip-bad' }[m.strength]
 
   function status(r) {
     if (r.skipped) return { text: t('kuja_row_skipped'), tone: 'text-ink-300' }
@@ -195,7 +192,7 @@ function ManglikCard({ manglik: m }) {
         <span className={chip}>{t(`kuja_${m.strength}`)}</span>
       </div>
       <p className="text-sm text-ink-500 mb-4">{t('kuja_intro')}</p>
-      <ul className="grid sm:grid-cols-3 gap-3">
+      <ul className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {m.references.map(r => {
           const s = status(r)
           return (

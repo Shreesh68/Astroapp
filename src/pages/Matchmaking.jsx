@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import BirthWizard, { Avatar } from '../components/BirthWizard'
 import { useLanguage } from '../contexts/LanguageContext'
-import { saveProfile } from '../lib/profiles'
+import { rememberGender, saveProfile } from '../lib/profiles'
 import { matchPath, paramsToProfile } from '../lib/share'
 
 /**
@@ -15,16 +15,21 @@ export default function Matchmaking(){
   const [params] = useSearchParams()
   const withProfile = paramsToProfile(params, 'w')
 
-  const [groom, setGroom] = useState(null)
-  const [bride, setBride] = useState(null)
-  const [stage, setStage] = useState(withProfile ? 'role' : 'groom')
+  // someone whose gender is known goes straight to their side; otherwise ask
+  const knownRole = { male: 'groom', female: 'bride' }[withProfile?.gender]
+  const [groom, setGroom] = useState(knownRole === 'groom' ? withProfile : null)
+  const [bride, setBride] = useState(knownRole === 'bride' ? withProfile : null)
+  const [stage, setStage] = useState(!withProfile ? 'groom' : knownRole === 'groom' ? 'bride' : knownRole === 'bride' ? 'groom' : 'role')
 
   function chooseRole(role) {
-    if (role === 'groom') { setGroom(withProfile); setStage('bride') }
-    else { setBride(withProfile); setStage('groom') }
+    const person = { ...withProfile, gender: role === 'groom' ? 'male' : 'female' }
+    rememberGender(person)
+    if (role === 'groom') { setGroom(person); setStage('bride') }
+    else { setBride(person); setStage('groom') }
   }
 
   function done(role, profile, { save }) {
+    if (!save) rememberGender(profile)
     const saved = save ? saveProfile(profile) : profile
     const g = role === 'groom' ? saved : groom
     const b = role === 'bride' ? saved : bride
@@ -77,8 +82,8 @@ export default function Matchmaking(){
         </div>
       )}
 
-      {stage === 'groom' && <BirthWizard key="groom" role="groom" initial={groom} excludeId={bride?.id} onSubmit={(p, o) => done('groom', p, o)} />}
-      {stage === 'bride' && <BirthWizard key="bride" role="bride" initial={bride} excludeId={groom?.id} onSubmit={(p, o) => done('bride', p, o)} />}
+      {stage === 'groom' && <BirthWizard key="groom" role="groom" initial={groom} other={bride} onSubmit={(p, o) => done('groom', p, o)} />}
+      {stage === 'bride' && <BirthWizard key="bride" role="bride" initial={bride} other={groom} onSubmit={(p, o) => done('bride', p, o)} />}
     </div>
   )
 }

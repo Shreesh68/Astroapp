@@ -28,7 +28,7 @@ export default function Home(){
         </div>
       </section>
 
-      <div className="grid lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <section className="card card-pad lg:col-span-3 animate-rise [animation-delay:80ms]">
           <div className="flex items-baseline justify-between gap-2 mb-1">
             <h2 className="section-title !mb-0">{t('panchang_today')}</h2>
