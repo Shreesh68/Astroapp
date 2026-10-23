@@ -44,7 +44,7 @@ function useVisibleHeight() {
 }
 
 function Shell({ subtitle, actions, follow, children, composer }) {
-  const { t } = useLanguage()
+  const { t, lang, setLang } = useLanguage()
   const navigate = useNavigate()
   const height = useVisibleHeight()
   const scroller = useRef(null)
@@ -65,6 +65,8 @@ function Shell({ subtitle, actions, follow, children, composer }) {
           <p className="truncate text-xs text-cream/70">{subtitle}</p>
         </div>
         {actions}
+        <button type="button" onClick={() => setLang(lang === 'en' ? 'kn' : 'en')} lang={lang === 'en' ? 'kn' : 'en'}
+          className="rounded-full px-3 py-1.5 text-xs font-semibold text-cream/90 ring-1 ring-white/25 hover:bg-white/10">{t('lang_toggle')}</button>
       </header>
       <div ref={scroller} className="flex-1 space-y-2 overflow-y-auto px-3 py-4" aria-live="polite">
         <p className="mx-auto mb-3 max-w-xs rounded-lg bg-[#FFF5C4] px-3 py-1.5 text-center text-[11px] text-ink-700 shadow-sm">{t('ask_note')}</p>
@@ -131,8 +133,8 @@ function Intake() {
   const { profiles } = useProfiles()
   const [data, setData] = useState(EMPTY)
   const [log, setLog] = useState(() => [
-    { from: 'bot', text: t('ai_hello'), time: now() },
-    { from: 'bot', text: profiles.length ? t('ai_ask_who') : t('ai_ask_name'), time: now() },
+    { from: 'bot', key: 'ai_hello', at: now() },
+    { from: 'bot', key: profiles.length ? 'ai_ask_who' : 'ai_ask_name', at: now() },
   ])
   const [step, setStep] = useState(profiles.length ? 'who' : 'name')
   const [returnTo, setReturnTo] = useState(null) // 'confirm' while changing one detail
@@ -141,11 +143,13 @@ function Intake() {
   const [time, setTime] = useState('')
 
   const name = data.name || '…'
-  const add = (...msgs) => setLog(l => [...l, ...msgs.map(m => ({ ...m, time: now() }))])
-  const question = (s, d = data) => ({
-    name: t('ai_ask_name'), gender: t('ai_ask_gender', { name: d.name }), date: t('ai_ask_date', { name: d.name }),
-    time: t('ai_ask_time', { name: d.name }), place: t('ai_ask_place', { name: d.name }),
-  }[s])
+  const add = (...msgs) => setLog(l => [...l, ...msgs.map(m => ({ ...m, at: now() }))])
+  // messages are kept as what they mean ({ key, vars } / { date } / { time } / { confirm } / { text }) and
+  // worded at render time, so switching language rewords the whole conversation
+  const question = (s, d = data) => ({ from: 'bot', key: `ai_ask_${s}`, vars: { name: d.name } })
+  const confirm = d => ({ from: 'bot', confirm: d })
+  const wording = m => m.key ? t(m.key, m.vars) : m.date ? fmtLongDate(m.date, lang) : m.time ? fmtTime(m.time, lang)
+    : m.confirm ? `${t('ai_confirm_intro')}\n${summary(m.confirm)}\n\n${t('ai_confirm_q')}` : m.text
 
   function summary(d) {
     return [
@@ -163,14 +167,13 @@ function Intake() {
     const target = returnTo || order[order.indexOf(after) + 1]
     setReturnTo(null)
     setStep(target)
-    if (target === 'confirm') add({ from: 'bot', text: `${t('ai_confirm_intro')}\n${summary(d)}\n\n${t('ai_confirm_q')}` })
-    else add({ from: 'bot', text: question(target, d) })
+    add(target === 'confirm' ? confirm(d) : question(target, d))
   }
 
-  function answer(text, patch, after) {
+  function answer(reply, patch, after) {
     const d = { ...data, ...patch }
     setData(d)
-    add({ from: 'me', text })
+    add({ from: 'me', ...reply })
     next(after, d)
   }
 
@@ -178,12 +181,12 @@ function Intake() {
     const d = { ...EMPTY, ...p }
     setData(d)
     add({ from: 'me', text: p.name })
-    if (!p.gender) { setStep('gender'); setReturnTo('confirm'); add({ from: 'bot', text: question('gender', d) }) }
-    else { setStep('confirm'); add({ from: 'bot', text: `${t('ai_confirm_intro')}\n${summary(d)}\n\n${t('ai_confirm_q')}` }) }
+    if (!p.gender) { setStep('gender'); setReturnTo('confirm'); add(question('gender', d)) }
+    else { setStep('confirm'); add(confirm(d)) }
   }
 
   function draw() {
-    add({ from: 'me', text: t('ai_yes') })
+    add({ from: 'me', key: 'ai_yes' })
     const profile = { ...data, time: data.timeUnknown ? '12:00' : data.time }
     let saved = profile
     if (profile.id) saveEdits(profile)
@@ -192,41 +195,41 @@ function Intake() {
   }
 
   function change(field) {
-    add({ from: 'me', text: t(`ai_f_${field}`) })
+    add({ from: 'me', key: `ai_f_${field}` })
     setReturnTo('confirm')
     setStep(field)
     if (field === 'date') setDate(data.date)
     if (field === 'time') setTime(data.time)
     if (field === 'name') setDraft(data.name)
-    add({ from: 'bot', text: question(field) })
+    add(question(field))
   }
 
   function onPlace(loc) {
     if (!loc) return
-    answer(loc.name, { place: loc.name, lat: loc.lat, lon: loc.lon, tz: getTimezone(loc.lat, loc.lon), display_name: loc.display_name }, 'place')
+    answer({ text: loc.name }, { place: loc.name, lat: loc.lat, lon: loc.lon, tz: getTimezone(loc.lat, loc.lon), display_name: loc.display_name }, 'place')
   }
 
   function submitText(e) {
     e.preventDefault()
-    if (step === 'name' && draft.trim()) { answer(draft.trim(), { name: draft.trim() }, 'name'); setDraft('') }
+    if (step === 'name' && draft.trim()) { answer({ text: draft.trim() }, { name: draft.trim() }, 'name'); setDraft('') }
     if (step === 'date') {
       const dt = DateTime.fromISO(date)
-      if (!date || !dt.isValid || dt.year < 1800) return add({ from: 'bot', text: t('err_date') })
-      if (dt > DateTime.now()) return add({ from: 'bot', text: t('err_future') })
-      answer(fmtLongDate(date, lang), { date }, 'date')
+      if (!date || !dt.isValid || dt.year < 1800) return add({ from: 'bot', key: 'err_date' })
+      if (dt > DateTime.now()) return add({ from: 'bot', key: 'err_future' })
+      answer({ date }, { date }, 'date')
     }
     if (step === 'time') {
-      if (!/^\d{2}:\d{2}$/.test(time)) return add({ from: 'bot', text: t('err_time') })
-      answer(fmtTime(time, lang), { time, timeUnknown: false }, 'time')
+      if (!/^\d{2}:\d{2}$/.test(time)) return add({ from: 'bot', key: 'err_time' })
+      answer({ time }, { time, timeUnknown: false }, 'time')
     }
   }
 
   let composer
   if (step === 'who') {
     composer = <Chips options={[...profiles.map(p => ({ label: p.name, onClick: () => pickSaved(p) })),
-      { label: `+ ${t('ai_someone_new')}`, primary: true, onClick: () => { add({ from: 'me', text: t('ai_someone_new') }, { from: 'bot', text: t('ai_ask_name') }); setStep('name') } }]} />
+      { label: `+ ${t('ai_someone_new')}`, primary: true, onClick: () => { add({ from: 'me', key: 'ai_someone_new' }, question('name')); setStep('name') } }]} />
   } else if (step === 'gender') {
-    composer = <Chips options={['male', 'female'].map(g => ({ label: t(`gender_${g}`), onClick: () => answer(t(`gender_${g}`), { gender: g }, 'gender') }))} />
+    composer = <Chips options={['male', 'female'].map(g => ({ label: t(`gender_${g}`), onClick: () => answer({ key: `gender_${g}` }, { gender: g }, 'gender') }))} />
   } else if (step === 'confirm') {
     composer = <Chips options={[{ label: t('ai_yes'), primary: true, onClick: draw },
       ...['name', 'gender', 'date', 'time', 'place'].map(f => ({ label: `✎ ${t(`ai_f_${f}`)}`, onClick: () => change(f) }))]} />
@@ -242,7 +245,7 @@ function Intake() {
           {step === 'time' && (
             <>
               <TimeFields autoFocus value={time} onChange={setTime} />
-              <button type="button" onClick={() => answer(t('ai_time_unknown'), { timeUnknown: true, time: '12:00' }, 'time')}
+              <button type="button" onClick={() => answer({ key: 'ai_time_unknown' }, { timeUnknown: true, time: '12:00' }, 'time')}
                 className="mt-2 text-sm font-semibold text-turmeric-700">{t('ai_time_unknown')}</button>
             </>
           )}
@@ -255,7 +258,7 @@ function Intake() {
   return (
     <Shell subtitle={t('ai_online')} follow={`${log.length}-${step}`} composer={composer}>
       {log.map((m, i) => (
-        <Bubble key={i} from={m.from} time={m.time}><p className="whitespace-pre-line">{m.text}</p></Bubble>
+        <Bubble key={i} from={m.from} time={m.at}><p className="whitespace-pre-line">{wording(m)}</p></Bubble>
       ))}
     </Shell>
   )

@@ -13,8 +13,10 @@ body { @apply bg-cream text-ink font-sans antialiased; overflow-wrap: anywhere; 
 /* no double-tap zoom on controls (rapid taps on the language toggle used to zoom the page) */
 a, button, input, select, textarea, label, summary { touch-action: manipulation; }
 
-/* Kannada text reads better slightly larger with more line height */
-[data-lang="kn"] body { font-family: 'Noto Sans Kannada', 'Poppins', system-ui, -apple-system, sans-serif; line-height: 1.6; }
+/* Kannada reads better with more line height. The font stays Poppins-first (see tailwind fontFamily.sans):
+   Kannada letters fall back to Noto Sans Kannada, while English words keep Poppins, so they look and
+   sit the same in both languages. */
+[data-lang="kn"] body { line-height: 1.6; }
 
 @layer components {
   .card        { @apply bg-white rounded-2xl border border-cream-200 shadow-[0_1px_2px_rgba(31,26,61,.04),0_8px_24px_-12px_rgba(31,26,61,.12)]; }
