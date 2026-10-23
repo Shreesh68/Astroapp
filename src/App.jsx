@@ -7,6 +7,7 @@ import Matchmaking from './pages/Matchmaking'
 import MatchResultPage from './pages/MatchResultPage'
 import Panchang from './pages/Panchang'
 import About from './pages/About'
+import AskAI from './pages/AskAI'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import { onBackButton } from './lib/platform'
@@ -35,22 +36,32 @@ export default function App() {
     <BrowserRouter>
       <ScrollToTop />
       <BackButton />
-      <div className="min-h-screen flex flex-col overflow-x-clip">
-        <Header />
-        <main className="flex-grow container mx-auto px-4 py-6 sm:py-10">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/birth-chart" element={<BirthChart />} />
-            <Route path="/birth-chart/result" element={<ChartResultPage />} />
-            <Route path="/matchmaking" element={<Matchmaking />} />
-            <Route path="/matchmaking/result" element={<MatchResultPage />} />
-            <Route path="/panchang" element={<Panchang />} />
-            <Route path="/about" element={<About />} />
-            <Route path="*" element={<Home />} />
-          </Routes>
-        </main>
-        <Footer />
-      </div>
+      <Routes>
+        {/* the chat is full-screen, like a messaging app */}
+        <Route path="/ask" element={<AskAI />} />
+        <Route path="*" element={<Layout />} />
+      </Routes>
     </BrowserRouter>
+  )
+}
+
+function Layout() {
+  return (
+    <div className="min-h-screen flex flex-col overflow-x-clip">
+      <Header />
+      <main className="flex-grow container mx-auto px-4 py-6 sm:py-10">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/birth-chart" element={<BirthChart />} />
+          <Route path="/birth-chart/result" element={<ChartResultPage />} />
+          <Route path="/matchmaking" element={<Matchmaking />} />
+          <Route path="/matchmaking/result" element={<MatchResultPage />} />
+          <Route path="/panchang" element={<Panchang />} />
+          <Route path="/about" element={<About />} />
+          <Route path="*" element={<Home />} />
+        </Routes>
+      </main>
+      <Footer />
+    </div>
   )
 }

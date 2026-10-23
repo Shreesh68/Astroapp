@@ -11,7 +11,6 @@ import SouthIndianChart, { planetsBySign } from '../components/SouthIndianChart'
 import DashaTimeline, { currentDasha } from '../components/DashaTimeline'
 import LoadingOverlay, { ErrorState } from '../components/LoadingOverlay'
 import ShareBar from '../components/ShareBar'
-import AskAstrologer from '../components/AskAstrologer'
 import { astrologerAvailable } from '../lib/astrologer'
 
 export default function ChartResultPage() {
@@ -80,7 +79,16 @@ function ChartView({ profile, chart }) {
         ))}
       </section>
 
-      {astrologerAvailable && <AskAstrologer profile={profile} />}
+      {astrologerAvailable && (
+        <Link to={`/ask?${profileToParams(profile)}`} className="no-print card group flex items-center gap-4 px-5 py-4 hover:border-turmeric transition">
+          <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ink text-xl text-turmeric">✺</span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">{t('ai_chart_cta', { name: first })}</span>
+            <span className="block text-sm text-ink-500">{t('ask_sub', { name: first })}</span>
+          </span>
+          <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-kumkum text-lg text-white transition group-hover:translate-x-1">→</span>
+        </Link>
+      )}
 
       {/* Interactive chart */}
       <section className="card card-pad grid grid-cols-1 md:grid-cols-2 gap-6 items-start">

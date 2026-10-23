@@ -36,6 +36,17 @@ export function saveProfile(profile) {
   return saved
 }
 
+const BIRTH_FIELDS = ['name', 'gender', 'date', 'time', 'timeUnknown', 'place', 'lat', 'lon', 'tz', 'display_name']
+
+/** Write changes made to a saved person (e.g. a corrected birth time) back to their saved profile. */
+export function saveEdits(profile) {
+  if (!profile?.id) return rememberGender(profile)
+  const saved = read().find(p => p.id === profile.id)
+  if (!saved) return
+  const patch = Object.fromEntries(BIRTH_FIELDS.filter(k => profile[k] !== undefined && profile[k] !== saved[k]).map(k => [k, profile[k]]))
+  if (Object.keys(patch).length) updateProfile(profile.id, patch)
+}
+
 /** Store a gender learned later (e.g. picking someone as the groom) on a profile saved without one. */
 export function rememberGender(profile) {
   if (!profile?.gender) return

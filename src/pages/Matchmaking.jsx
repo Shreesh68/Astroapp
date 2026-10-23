@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import BirthWizard, { Avatar } from '../components/BirthWizard'
 import { useLanguage } from '../contexts/LanguageContext'
-import { rememberGender, saveProfile } from '../lib/profiles'
+import { rememberGender, saveEdits, saveProfile } from '../lib/profiles'
 import { matchPath, paramsToProfile } from '../lib/share'
 
 /**
@@ -29,7 +29,7 @@ export default function Matchmaking(){
   }
 
   function done(role, profile, { save }) {
-    if (!save) rememberGender(profile)
+    if (!save) saveEdits(profile)
     const saved = save ? saveProfile(profile) : profile
     const g = role === 'groom' ? saved : groom
     const b = role === 'bride' ? saved : bride

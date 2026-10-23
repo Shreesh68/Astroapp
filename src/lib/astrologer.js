@@ -4,7 +4,7 @@
 import { DateTime } from 'luxon'
 import { chartFor } from '../engine'
 import { RASHI_LORD } from '../engine/constants'
-import { runTool } from '../engine/tools'
+import { runTool, saturnFromMoon } from '../engine/tools'
 import { ApiError, toPayload } from './api'
 
 const CHAT_URL = (import.meta.env.VITE_CHAT_URL || '').replace(/\/+$/, '')
@@ -61,6 +61,17 @@ export function chartSummary(birth, chart, today) {
     lines.push(`Running now: ${title(maha.lord)} mahadasha${antar ? `, ${title(antar.lord)} antardasha until ${day(antar.end)}` : ''}`)
     lines.push(`Antardashas of the ${title(maha.lord)} mahadasha: ` + maha.antardashas.map(a => `${title(a.lord)} ${day(a.start)} to ${day(a.end)}`).join('; '))
   }
+
+  // today's slow planets and Saturn's periods, worked out here so the model can quote them as facts
+  const sky = chartFor({ date: today, time: '12:00', lat: birth.lat, lon: birth.lon, tz: birth.tz })
+  lines.push(`Transits today (${today}, calculated):`)
+  for (const name of ['saturn', 'jupiter', 'rahu', 'ketu']) {
+    const p = sky.planets[name]
+    const fromMoon = ((p.sign_index - chart.planets.moon.sign_index + 12) % 12) + 1
+    const fromLagna = ((p.sign_index - asc.sign_index + 12) % 12) + 1
+    lines.push(`  ${title(name)}: ${p.sign}${p.retrograde && name !== 'rahu' && name !== 'ketu' ? ' (retrograde)' : ''}, house ${fromMoon} from the Moon${known ? `, house ${fromLagna} from the Lagna` : ''}`)
+  }
+  lines.push(...saturnFromMoon(birth, chart, today))
   return lines.join('\n')
 }
 

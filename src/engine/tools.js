@@ -77,6 +77,53 @@ function signChanges(birth, natal, args) {
   return { planet, sign_on_start_date: starting, changes }
 }
 
+/** Contiguous stretches a planet spends in each sign between two dates: [{ sign, from, to }]. */
+function signSegments(birth, natal, planet, start, end) {
+  const { sign_on_start_date: first, changes } = signChanges(birth, natal, { planet, start_date: start, end_date: end })
+  const segments = [{ sign: RASHI.indexOf(first), from: start, to: end }]
+  for (const c of changes) {
+    segments[segments.length - 1].to = c.date
+    segments.push({ sign: RASHI.indexOf(c.to), from: c.date, to: end })
+  }
+  return segments
+}
+
+const PHASES = { 12: 'first (rising) phase — Saturn in the 12th from the Moon', 1: 'second (peak) phase — Saturn over the natal Moon', 2: 'third (setting) phase — Saturn in the 2nd from the Moon' }
+
+/**
+ * Sade Sati and the other Saturn-from-Moon periods worked out exactly, so the model never has to.
+ * today: 'YYYY-MM-DD'. Returns plain sentences for the chart summary.
+ */
+export function saturnFromMoon(birth, natal, today) {
+  const moon = natal.planets.moon.sign_index
+  const t = DateTime.fromISO(today)
+  const segments = signSegments(birth, natal, 'saturn', t.minus({ years: 12 }).toISODate(), t.plus({ years: 30 }).toISODate())
+  const house = sign => mod(sign - moon, 12) + 1
+  const inSadeSati = seg => [12, 1, 2].includes(house(seg.sign))
+  const now = segments.findIndex(seg => seg.from <= today && today < seg.to)
+  const cur = segments[now]
+  const lines = [`Saturn today: ${RASHI[cur.sign]}, house ${house(cur.sign)} from the natal Moon (${RASHI[moon]})`]
+
+  // a Sade Sati is one unbroken run of segments in the 12th, 1st and 2nd from the Moon (retrograde dips included)
+  const runAround = i => {
+    let a = i, b = i
+    while (a > 0 && inSadeSati(segments[a - 1])) a--
+    while (b < segments.length - 1 && inSadeSati(segments[b + 1])) b++
+    return [a > 0 ? segments[a].from : null, b < segments.length - 1 ? segments[b].to : null]
+  }
+  if (inSadeSati(cur)) {
+    const [from, to] = runAround(now)
+    lines.push(`Sade Sati: RUNNING NOW, ${PHASES[house(cur.sign)]}; began ${from ?? 'more than 12 years ago'}, ends ${to ?? 'after the next 30 years'}`)
+  } else {
+    const next = segments.findIndex((seg, i) => i > now && inSadeSati(seg))
+    const [from, to] = next >= 0 ? runAround(next) : [null, null]
+    lines.push(`Sade Sati: not running now; next one ${next >= 0 ? `begins ${from} and ends ${to ?? 'after the next 30 years'}` : 'is more than 30 years away'}`)
+    if (house(cur.sign) === 8) lines.push(`Ashtama Shani (Saturn in the 8th from the Moon) is running now, until ${cur.to}`)
+    if (house(cur.sign) === 4) lines.push(`Kantaka / Ardhashtama Shani (Saturn in the 4th from the Moon) is running now, until ${cur.to}`)
+  }
+  return lines
+}
+
 function dashaPeriods(birth, natal, args) {
   const start = parseDate(args, 'start_date').toISODate(), end = parseDate(args, 'end_date').toISODate()
   if (end < start) throw new ToolInputError('end_date must not be before start_date')
