@@ -1,0 +1,17 @@
+// Chat server for the AI astrologer. Deploy from the repo root: npm run deploy:chat
+{
+  "name": "karnatakamatch-chat",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "ai": { "binding": "AI" },
+  "vars": {
+    // any Workers AI text model that supports tool calls; change and redeploy to switch
+    "MODEL": "@cf/google/gemma-4-26b-a4b-it",
+    // "on" lets the model reason before answering: slower, sometimes more careful
+    "THINKING": "off"
+  },
+  "ratelimits": [
+    { "name": "LIMITER", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } }
+  ],
+  "observability": { "enabled": true }
+}

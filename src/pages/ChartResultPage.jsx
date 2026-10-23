@@ -11,6 +11,8 @@ import SouthIndianChart, { planetsBySign } from '../components/SouthIndianChart'
 import DashaTimeline, { currentDasha } from '../components/DashaTimeline'
 import LoadingOverlay, { ErrorState } from '../components/LoadingOverlay'
 import ShareBar from '../components/ShareBar'
+import AskAstrologer from '../components/AskAstrologer'
+import { astrologerAvailable } from '../lib/astrologer'
 
 export default function ChartResultPage() {
   const [params] = useSearchParams()
@@ -77,6 +79,8 @@ function ChartView({ profile, chart }) {
           </div>
         ))}
       </section>
+
+      {astrologerAvailable && <AskAstrologer profile={profile} />}
 
       {/* Interactive chart */}
       <section className="card card-pad grid grid-cols-1 md:grid-cols-2 gap-6 items-start">

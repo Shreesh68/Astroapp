@@ -1,10 +1,10 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
-import { askAstrologer } from '../lib/api'
+import { askAstrologer } from '../lib/astrologer'
 
 // the server accepts up to 40 turns; an odd count keeps the history starting with a question
 const HISTORY_TURNS = 39
-const ERRORS = ['refused', 'busy', 'unavailable', 'failed', 'too_long', 'too_many_steps']
+const ERRORS = ['refused', 'busy', 'daily_limit', 'unavailable', 'failed', 'too_long', 'too_many_steps', 'not_configured']
 
 // Conversations are kept per chart on this device, so they survive leaving the page
 const storageKey = p => `km_chat_${p.date}_${p.timeUnknown ? 'x' : p.time}_${p.lat}_${p.lon}`
