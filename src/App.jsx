@@ -8,6 +8,8 @@ import MatchResultPage from './pages/MatchResultPage'
 import Panchang from './pages/Panchang'
 import About from './pages/About'
 import AskAI from './pages/AskAI'
+import Login from './pages/Login'
+import Account from './pages/Account'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import { onBackButton } from './lib/platform'
@@ -58,6 +60,8 @@ function Layout() {
           <Route path="/matchmaking/result" element={<MatchResultPage />} />
           <Route path="/panchang" element={<Panchang />} />
           <Route path="/about" element={<About />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/account" element={<Account />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </main>

@@ -1,5 +1,7 @@
 import { NavLink, Link } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
+import { accountsAvailable, useAccount } from '../lib/account'
+import { useProfiles } from '../lib/profiles'
 
 const LINKS = [
   { to: '/', key: 'nav_home', icon: '⌂', end: true },
@@ -10,6 +12,17 @@ const LINKS = [
 
 export default function Header() {
   const { lang, setLang, t } = useLanguage()
+  const { user } = useAccount()
+  const { self } = useProfiles()
+  // logged in: the person's initial (or 👤); logged out: "Log in"
+  const account = accountsAvailable && (
+    <Link to={user ? '/account' : '/login'} aria-label={user ? t('acc_eyebrow') : t('login_link')}
+      className={user
+        ? 'flex h-8 w-8 items-center justify-center rounded-full bg-turmeric text-sm font-bold text-ink'
+        : 'rounded-full px-3 py-1 text-sm font-semibold text-turmeric hover:bg-white/10 transition'}>
+      {user ? ((self?.name || user.name)?.trim().charAt(0).toUpperCase() || '👤') : t('login_link')}
+    </Link>
+  )
   const toggle = (
     <button onClick={() => setLang(lang === 'en' ? 'kn' : 'en')}
       className="rounded-full border border-white/25 px-3 py-1 text-sm font-semibold text-cream hover:bg-white/10 transition"
@@ -33,9 +46,9 @@ export default function Header() {
                 {t(l.key)}
               </NavLink>
             ))}
-            <span className="ml-2">{toggle}</span>
+            <span className="ml-2 flex items-center gap-2">{account}{toggle}</span>
           </nav>
-          <div className="md:hidden">{toggle}</div>
+          <div className="md:hidden flex items-center gap-2">{account}{toggle}</div>
         </div>
       </header>
 

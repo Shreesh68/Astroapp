@@ -38,3 +38,7 @@ npm-debug.log*
 
 # PHP Composer
 astrology-api-demo/vendor/
+
+# Firebase CLI
+firebase-debug.log
+.firebase/

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import { removeProfile, useProfiles } from '../lib/profiles'
+import { accountsAvailable, useAccount } from '../lib/account'
 import { chartPath, profileToParams } from '../lib/share'
 import { todayIn, fmtLongDate } from '../lib/dates'
 import PanchangCard, { loadPanchangPlace, usePanchang } from '../components/PanchangCard'
@@ -10,7 +11,8 @@ import { astrologerAvailable } from '../lib/astrologer'
 
 export default function Home(){
   const { t, lang } = useLanguage()
-  const { profiles } = useProfiles()
+  const { profiles, self } = useProfiles()
+  const { ready, user } = useAccount()
   const [place] = useState(loadPanchangPlace)
   const today = todayIn(place.tz)
   const panchang = usePanchang(today, place)
@@ -28,6 +30,27 @@ export default function Home(){
           <Link to="/matchmaking" className="btn border border-white/30 text-cream hover:bg-white/10">{t('home_cta_match')}</Link>
         </div>
       </section>
+
+      {accountsAvailable && ready && (user && self ? (
+        <Link to={chartPath(self)} className="card flex items-center gap-4 px-5 py-4 animate-rise hover:border-turmeric transition">
+          <Avatar name={self.name} />
+          <span className="min-w-0 flex-1">
+            <span className="eyebrow block">{t('acc_mine')}</span>
+            <span className="block font-semibold truncate">{self.name}</span>
+            <span className="block text-xs text-ink-500 truncate">{fmtLongDate(self.date, lang)} · {self.place}</span>
+          </span>
+          <span aria-hidden className="text-xl text-ink-300">→</span>
+        </Link>
+      ) : (
+        <Link to="/login" className="card flex items-center gap-4 px-5 py-4 animate-rise hover:border-turmeric transition">
+          <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-cream-100 text-xl">📱</span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">{t(user ? 'acc_mine_add' : 'login_cta_title')}</span>
+            <span className="block text-sm text-ink-500">{t(user ? 'acc_mine_empty' : 'login_cta_sub')}</span>
+          </span>
+          <span aria-hidden className="text-xl text-ink-300">→</span>
+        </Link>
+      ))}
 
       {astrologerAvailable && (
         <Link to="/ask" className="card group flex items-center gap-4 px-5 py-4 animate-rise [animation-delay:40ms] hover:border-turmeric transition">

@@ -15,20 +15,21 @@ const EMPTY = { name: '', gender: '', date: '', time: '', timeUnknown: false, pl
 
 /**
  * One-question-at-a-time birth details form.
- *   role: 'chart' | 'groom' | 'bride'   — changes the wording
+ *   role: 'chart' | 'groom' | 'bride' | 'self' (the logged-in person's own kundli) — changes the wording
  *   initial: a profile to start from (skips straight to review)
+ *   initialName: a name to start with (e.g. from the Google account)
  *   other: the person already chosen for the other side of a match (never offered again)
  *   onSubmit(profile, { save })
  */
-export default function BirthWizard({ role = 'chart', initial = null, onSubmit, other = null }) {
+export default function BirthWizard({ role = 'chart', initial = null, initialName = '', onSubmit, other = null }) {
   const { t, lang } = useLanguage()
   const { profiles } = useProfiles()
-  const STEPS_FOR = STEPS[role === 'chart' ? 'chart' : 'other']
+  const STEPS_FOR = STEPS[role === 'chart' || role === 'self' ? 'chart' : 'other']
   const roleGender = ROLE_GENDER[role]
   // a groom is picked only from men and a bride only from women (people saved before gender was asked
   // are offered on both sides); never the person already on the other side
-  const choices = profiles.filter(p => !samePerson(p, other) && (!roleGender || !p.gender || p.gender === roleGender))
-  const [data, setData] = useState(initial || EMPTY)
+  const choices = role === 'self' ? [] : profiles.filter(p => !samePerson(p, other) && (!roleGender || !p.gender || p.gender === roleGender))
+  const [data, setData] = useState(initial || { ...EMPTY, name: initialName })
   const [step, setStep] = useState(initial ? 'review' : choices.length ? 'pick' : 'name')
   const [error, setError] = useState('')
   const [save, setSave] = useState(!initial?.id)
@@ -80,8 +81,8 @@ export default function BirthWizard({ role = 'chart', initial = null, onSubmit, 
     set({ place: loc.name, lat: loc.lat, lon: loc.lon, tz: getTimezone(loc.lat, loc.lon), display_name: loc.display_name })
   }
 
-  const submitLabel = { chart: t('wiz_submit_chart'), groom: t('wiz_submit_groom'), bride: t('wiz_submit_bride') }[role]
-  const nameTitle = { chart: t('wiz_name_title_chart'), groom: t('wiz_name_title_groom'), bride: t('wiz_name_title_bride') }[role]
+  const submitLabel = { chart: t('wiz_submit_chart'), groom: t('wiz_submit_groom'), bride: t('wiz_submit_bride'), self: t('wiz_submit_self') }[role]
+  const nameTitle = { chart: t('wiz_name_title_chart'), groom: t('wiz_name_title_groom'), bride: t('wiz_name_title_bride'), self: t('wiz_name_title_self') }[role]
 
   return (
     <form onSubmit={next} className="card card-pad sm:p-8" noValidate>
@@ -181,7 +182,7 @@ export default function BirthWizard({ role = 'chart', initial = null, onSubmit, 
             <ul className="divide-y divide-cream-100 rounded-xl border border-cream-200">
               {[
                 ['name', data.name],
-                ...(role === 'chart' ? [['gender', data.gender ? t(`gender_${data.gender}`) : t('gender_unset')]] : []),
+                ...(role === 'chart' || role === 'self' ? [['gender', data.gender ? t(`gender_${data.gender}`) : t('gender_unset')]] : []),
                 ['date', data.date && fmtLongDate(data.date, lang)],
                 ['time', data.timeUnknown ? t('time_unknown_short') : data.time && fmtTime(data.time, lang)],
                 ['place', data.place],
@@ -194,7 +195,7 @@ export default function BirthWizard({ role = 'chart', initial = null, onSubmit, 
                 </li>
               ))}
             </ul>
-            {!data.id && (
+            {!data.id && role !== 'self' && (
               <label className="mt-4 flex items-center gap-3 cursor-pointer select-none">
                 <input type="checkbox" className="accent-kumkum h-4 w-4" checked={save} onChange={e => setSave(e.target.checked)} />
                 <span className="text-sm">{t('wiz_save', { name: data.name })}</span>

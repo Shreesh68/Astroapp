@@ -1,0 +1,30 @@
+rules_version = '2';
+
+// Each logged-in person can read and write only their own kundlis: users/{their uid}/people/{id}.
+// Everything else is closed.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/people/{personId} {
+      function isOwner() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+      function validKundli(d) {
+        return d.keys().hasOnly(['id', 'name', 'gender', 'date', 'time', 'timeUnknown', 'place', 'lat', 'lon',
+                                 'tz', 'display_name', 'savedAt', 'self'])
+          && d.name is string && d.name.size() > 0 && d.name.size() <= 100
+          && d.date is string && d.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && d.time is string && d.time.matches('^[0-9]{2}:[0-9]{2}$')
+          && d.lat is number && d.lon is number && d.tz is string
+          && (!('place' in d) || (d.place is string && d.place.size() <= 200))
+          && (!('display_name' in d) || (d.display_name is string && d.display_name.size() <= 500))
+          && (!('gender' in d) || d.gender in ['male', 'female', ''])
+          && (!('self' in d) || d.self is bool);
+      }
+      allow read, delete: if isOwner();
+      allow create, update: if isOwner() && validKundli(request.resource.data);
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
