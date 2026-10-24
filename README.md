@@ -1,4 +1,4 @@
-# KarnatakaMatch
+# KannadaAstro
 
 Vedic birth charts, Ashtakoota kundli matching and a daily Panchang, in Kannada and English.
 

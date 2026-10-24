@@ -28,7 +28,7 @@ try:
 except ImportError:
     prokerala_router = None
 
-app = FastAPI(title='KarnatakaMatch Ephemeris')
+app = FastAPI(title='KannadaAstro Ephemeris')
 
 _raw = os.environ.get('ALLOWED_ORIGINS', 'http://localhost:5173')
 # Hosts given without a scheme (e.g. Render's `fromService` host) are assumed to be https
