@@ -5,6 +5,7 @@ import { DateTime } from 'luxon'
 import { chartFor } from '../engine'
 import { RASHI_LORD } from '../engine/constants'
 import { runTool, saturnFromMoon } from '../engine/tools'
+import { analyseChart, topicFocus, topicOf } from '../engine/analysis'
 import { ApiError, toPayload } from './api'
 
 const CHAT_URL = (import.meta.env.VITE_CHAT_URL || '').replace(/\/+$/, '')
@@ -72,6 +73,7 @@ export function chartSummary(birth, chart, today) {
     lines.push(`  ${title(name)}: ${p.sign}${p.retrograde && name !== 'rahu' && name !== 'ketu' ? ' (retrograde)' : ''}, house ${fromMoon} from the Moon${known ? `, house ${fromLagna} from the Lagna` : ''}`)
   }
   lines.push(...saturnFromMoon(birth, chart, today))
+  lines.push('', ...analyseChart(birth, chart, today))
   return lines.join('\n')
 }
 
@@ -138,6 +140,14 @@ export async function askAstrologer({ profile, messages, lang, signal, onEvent }
   convo[0] = {
     role: 'user',
     content: `Birth chart of the person asking (calculated by the app; today is ${today}):\n${chartSummary(birth, natal, today)}\n\nQuestion: ${convo[0].content}`,
+  }
+
+  // the newest question gets a short exact fact sheet for its topic, so the model quotes rather than computes
+  const last = convo.length - 1
+  const topic = topicOf(messages[messages.length - 1].content)
+  if (topic) {
+    const focus = topicFocus(birth, natal, today, topic)
+    convo[last] = { ...convo[last], content: `${convo[last].content}\n\n${focus.join('\n')}` }
   }
 
   let wroteText = false

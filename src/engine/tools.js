@@ -44,7 +44,7 @@ const signAt = (jd, planet) => Math.floor((planet === 'ketu'
 // how far apart to sample; a planet never spends less than this in a sign, retrograde dips included
 const STEP_DAYS = { moon: 1 / 24, sun: 1, mercury: 1, venus: 1, mars: 1, jupiter: 2, saturn: 2, rahu: 5, ketu: 5 }
 
-function signChanges(birth, natal, args) {
+export function signChanges(birth, natal, args) {
   const planet = args?.planet
   if (!(planet in STEP_DAYS)) throw new ToolInputError('unknown planet')
   const start = parseDate(args, 'start_date'), end = parseDate(args, 'end_date')
