@@ -22,7 +22,7 @@ How to answer:
 - Speak warmly and plainly, like a trusted family astrologer. Explain a Sanskrit term the first time you use it.
 - Astrology shows tendencies and timing, not certainties. Be balanced, mention strengths with challenges, and never frighten. Offer a traditional remedy (mantra, fasting, charity, temple visit) only gently, never as a requirement or a purchase.
 - Never predict death, lifespan, the timing of accidents or of a loved one's passing; gently decline and offer to look at health and well-being instead. Never diagnose illness, promise legal outcomes, predict lottery or betting results, or recommend investments. For health, legal, money or mental-health worries, say what the chart traditionally shows and suggest seeing a doctor, lawyer or qualified adviser. If someone seems distressed, respond with care first.
-- For compatibility with a specific partner, suggest the app's Matching section.
+- Matchmaking: when the person asks about compatibility with a specific person, use check_match — never judge a match without it. The partner is the opposite gender of the person asking (the chart summary gives their gender). For someone saved in the app the name is enough; otherwise ask for the partner's birth date, time and place, and confirm the place the tool found. Lead with the verdict and its reasons (Rajju, Vedha, Nadi, Bhakoot and Kuja count for more than the guna total), then the strong and weak kootas, then a balanced closing. If the tool says the bride is older, explain that tradition prefers an older groom and ask whether to go ahead; only on a yes, call it again with allow_elder_bride true. Mention that the app's Matching section shows the full breakdown.
 - Stay on astrology, Panchang, festivals, muhurta and related tradition; politely decline anything else.`
 
 const LANG_NOTE = {
@@ -65,7 +65,7 @@ function ownWords(messages) {
   return q.split('\n\nFOCUS FOR THIS QUESTION')[0]
 }
 
-function fixedReply(messages) {
+export function fixedReply(messages) {
   const words = ownWords(messages)
   if (SELF_HARM.test(words)) return 'self_harm'
   if (DEATH.test(words)) return 'death'

@@ -2,11 +2,13 @@
 // each step to the AI model, and whenever the model asks for a calculation (transits, dashas,
 // Panchang) the app runs it here with its own engine and sends the result back.
 import { DateTime } from 'luxon'
-import { chartFor } from '../engine'
+import { chartFor, computeMatch } from '../engine'
 import { RASHI_LORD } from '../engine/constants'
 import { runTool, saturnFromMoon } from '../engine/tools'
 import { analyseChart, topicFocus, topicOf } from '../engine/analysis'
 import { ApiError, toPayload } from './api'
+import { findPlace } from './places'
+import { readProfiles, samePerson } from './profiles'
 
 const CHAT_URL = (import.meta.env.VITE_CHAT_URL || '').replace(/\/+$/, '')
 const MAX_ROUNDS = 6
@@ -38,6 +40,7 @@ export function chartSummary(birth, chart, today) {
   const asc = chart.ascendant
   const lines = [
     `Name: ${birth.name || 'not given'}`,
+    `Gender: ${birth.gender || 'not given'}`,
     `Born: ${birth.date} at ${known ? birth.time : 'unknown time (noon used)'}, ${birth.place || 'place not named'} (lat ${birth.lat.toFixed(4)}, lon ${birth.lon.toFixed(4)}, ${birth.tz})`,
     `Ayanamsa: Lahiri ${chart.ayanamsa_degree.toFixed(4)}°`,
     known ? `Lagna: ${asc.sign} ${dms(asc.degree)}, ${asc.nakshatra} pada ${asc.pada}`
@@ -132,7 +135,7 @@ async function readStep(res, onText) {
  */
 export async function askAstrologer({ profile, messages, lang, signal, onEvent }) {
   if (!CHAT_URL) throw new ApiError('not_configured')
-  const birth = { ...toPayload(profile), name: profile.name, place: profile.place }
+  const birth = { ...toPayload(profile), name: profile.name, place: profile.place, gender: profile.gender }
   const natal = chartFor(birth)
   const today = DateTime.now().setZone(birth.tz).toISODate()
 
@@ -185,8 +188,88 @@ export async function askAstrologer({ profile, messages, lang, signal, onEvent }
     convo.push({ role: 'assistant', content: text || '', tool_calls: toolCalls })
     for (const call of toolCalls) {
       onEvent({ type: 'tool', name: call.function.name })
-      convo.push({ role: 'tool', tool_call_id: call.id, content: runTool(call.function.name, call.function.arguments, birth, natal) })
+      const content = call.function.name === 'check_match'
+        ? await checkMatch(call.function.arguments, profile, natal, signal)
+        : runTool(call.function.name, call.function.arguments, birth, natal)
+      convo.push({ role: 'tool', tool_call_id: call.id, content })
     }
   }
   throw new ApiError('too_many_steps')
+}
+
+// ── Matchmaking from the chat ─────────────────────────────
+
+const lower = s => String(s || '').trim().toLowerCase()
+// partners checked in this session, by name, so a follow-up call (e.g. "yes, go ahead" after the
+// older-bride question) can give just the name: the chat only keeps the text of earlier turns
+const recentPartners = new Map()
+
+/**
+ * The check_match tool: the person asking and a partner (saved in the app, or details given in the chat),
+ * groom and bride by gender. With an older bride it asks for confirmation unless allow_elder_bride is set.
+ */
+export async function checkMatch(rawArgs, profile, natal, signal) {
+  let args
+  try { args = typeof rawArgs === 'string' ? JSON.parse(rawArgs || '{}') : rawArgs || {} } catch { return 'error: arguments were not valid JSON' }
+  const gender = profile.gender || args.asker_gender
+  if (!['male', 'female'].includes(gender)) {
+    return 'error: the gender of the person asking is not known — ask whether they are male or female, then call again with asker_gender'
+  }
+  const name = String(args.partner_name || '').trim()
+  if (!name) return 'error: partner_name is required'
+
+  let partner = !args.birth_date && (readProfiles().find(p => lower(p.name) === lower(name) && !samePerson(p, profile)) || recentPartners.get(lower(name)))
+  let placeFound = null
+  if (!partner) {
+    const missing = ['birth_date', 'birth_time', 'birth_place'].filter(k => !args[k])
+    if (missing.length) return `error: ${name} is not saved in the app; ask the person for the ${missing.join(', ').replace(/_/g, ' ')}`
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(args.birth_date)) return 'error: birth_date must be YYYY-MM-DD'
+    const unknownTime = /unknown|not known|don't know/i.test(args.birth_time)
+    if (!unknownTime && !/^\d{1,2}:\d{2}$/.test(args.birth_time)) return 'error: birth_time must be HH:MM (24-hour) or "unknown"'
+    let place
+    try { place = await findPlace(args.birth_place, signal) } catch (err) { if (err.name === 'AbortError') throw err }
+    if (!place) return `error: could not find the place "${args.birth_place}" — ask for a nearby town or the district`
+    placeFound = place.display_name
+    partner = {
+      name, date: args.birth_date, time: unknownTime ? '12:00' : args.birth_time.padStart(5, '0'), timeUnknown: unknownTime,
+      place: place.name, lat: place.lat, lon: place.lon, tz: place.tz,
+    }
+    recentPartners.set(lower(name), { ...partner, placeFound })
+  }
+  placeFound ??= partner.placeFound
+
+  let partnerChart
+  try { partnerChart = chartFor(toPayload(partner)) } catch (err) { return `error: ${err.message}` }
+  const groomIsAsker = gender === 'male'
+  const [groom, bride] = groomIsAsker ? [profile, partner] : [partner, profile]
+  const m = computeMatch(groomIsAsker ? natal : partnerChart, groomIsAsker ? partnerChart : natal)
+  const gap = Math.abs(m.ages.groom_older_months)
+  const gapText = gap >= 12 ? `${Math.floor(gap / 12)} years ${gap % 12} months` : `${gap} months`
+
+  if (m.ages.bride_older && !args.allow_elder_bride) {
+    return JSON.stringify({
+      needs_confirmation: true,
+      message: `${bride.name} (bride) is ${gapText} older than ${groom.name} (groom). Tradition prefers an older groom. Ask whether they still want the match checked; if yes, call again with allow_elder_bride true.`,
+    })
+  }
+  const person = (p, side) => ({ name: p.name, age: m.ages[side], moon_sign: m[side].rashi, nakshatra: `${m[side].nakshatra} pada ${m[side].pada}`, birth_time_unknown: !!p.timeUnknown })
+  return JSON.stringify({
+    groom: person(groom, 'groom'), bride: person(bride, 'bride'),
+    ages: m.ages.bride_older ? `bride is ${gapText} older (matched on request)` : gap === 0 ? 'same age' : `groom is ${gapText} older`,
+    partner_place_found: placeFound || `${partner.place} (saved in the app)`,
+    partner_birth: `${partner.date} ${partner.timeUnknown ? '(time unknown)' : partner.time}`,
+    gunas: `${m.total} of 36`,
+    kootas: Object.fromEntries(m.kootas.map(k => [k.key, `${k.score}/${k.max}`])),
+    verdict: m.verdict.replace('_', ' '),
+    verdict_reasons: m.verdict_reasons.map(r => `${r.key} (${r.severity})`),
+    doshas: m.doshas.map(d => `${d.key}: ${d.cancelled_reason ? `cancelled — ${d.cancelled_reason}` : 'present'}`),
+    south_indian: {
+      rajju: m.south.rajju.ok ? `agrees (groom ${m.south.rajju.groom}, bride ${m.south.rajju.bride})` : `DOSHA — both ${m.south.rajju.groom}`,
+      vedha: m.south.vedha.ok ? 'agrees' : 'DOSHA',
+      mahendra: `${m.south.mahendra.ok ? 'agrees' : 'not met'} (count ${m.south.mahendra.count})`,
+      stree_deergha: `${m.south.stree_deergha.level.replace('_', ' ')} (count ${m.south.stree_deergha.count})`,
+    },
+    kuja_dosha: `${m.manglik.status}${m.manglik.ok ? ' — no mismatch' : ' — one-sided, not balanced'}`,
+    note: (groom.timeUnknown || bride.timeUnknown) ? 'a birth time is unknown (noon used): the nakshatra may be off if the Moon was near a boundary' : undefined,
+  })
 }

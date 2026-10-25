@@ -62,9 +62,11 @@ cd android && JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/
 ## Tests
 
 ```bash
-cd backend && .venv/bin/python -m pytest -q
+npm test                                   # the app's engine, matching, AI fact sheets, safety guard, saved people
+cd backend && .venv/bin/python -m pytest -q # the Python backend
 ```
 
 ## Notes
-- Calculation conventions: Lahiri ayanamsa, mean Rahu, whole-sign houses. Kuja dosha follows South Indian practice (`backend/kuja.py` lists every exemption). Lunar months are amanta and Rutu is Chandramana, as in Karnataka. Vashya and Gana scoring tables differ between traditions, and `backend/ashtakoota.py` documents the ones used.
-- Place search uses OpenStreetMap Nominatim, which is limited to about 1 request per second. For real traffic, proxy it through the backend or use a commercial geocoder.
+- Calculation conventions: Lahiri ayanamsa, mean Rahu, whole-sign houses. Kuja dosha follows South Indian practice (`src/engine/chart.js` lists every exemption). Lunar months are amanta and Rutu is Chandramana, as in Karnataka.
+- Matching (`src/engine/ashtakoota.js`): Ashtakoota with OnlineJyotish's bride × groom tables, plus Rajju, Vedha, Mahendra and Stree Deergha. Rajju, Vedha, a non-permitted shared star or under 18 gunas make a match not recommended; uncancelled Nadi/Bhakoot, one-sided Kuja dosha or an older bride cap it at acceptable.
+- Place search uses Photon (OpenStreetMap, made for type-ahead), with Nominatim as a fallback.

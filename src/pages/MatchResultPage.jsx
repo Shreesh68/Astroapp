@@ -45,6 +45,15 @@ function MatchView({ groom, bride, data }) {
           <span className="text-3xl text-kumkum animate-pop [animation-delay:300ms]" aria-hidden>❦</span>
           <Person profile={bride} role={t('match_bride')} moon={m.bride} />
         </div>
+        {m.ages && (() => {
+          const mo = Math.abs(m.ages.groom_older_months)
+          const gap = mo >= 12 ? t('age_years', { n: Math.floor(mo / 12) }) : t('age_months', { n: mo })
+          return (
+            <p className={`-mt-2 mb-5 text-sm ${m.ages.bride_older ? 'text-turmeric-700' : 'text-ink-500'}`}>
+              {t('age_line', { groom: m.ages.groom, bride: m.ages.bride })} · {t(mo === 0 ? 'age_same' : m.ages.bride_older ? 'age_bride_older' : 'age_groom_older', { gap })}
+            </p>
+          )
+        })()}
         <GunaMeter score={m.total} max={m.max} tone={verdict.tone} label={t('match_points')} />
         <p className={`mt-4 font-display text-2xl font-semibold ${verdict.tone === 'good' ? 'text-leaf' : verdict.tone === 'bad' ? 'text-kumkum' : 'text-turmeric-700'}`}>
           {pick(verdict, lang)}

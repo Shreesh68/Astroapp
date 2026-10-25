@@ -4,6 +4,13 @@ import BirthWizard, { Avatar } from '../components/BirthWizard'
 import { useLanguage } from '../contexts/LanguageContext'
 import { rememberGender, saveEdits, saveProfile } from '../lib/profiles'
 import { matchPath, paramsToProfile } from '../lib/share'
+import { DateTime } from 'luxon'
+
+/** Months by which the bride is older than the groom (0 or less when the groom is older). */
+function brideOlderMonths(groom, bride) {
+  const at = p => DateTime.fromISO(`${p.date}T${p.timeUnknown ? '12:00' : p.time}`)
+  return Math.round(at(bride).diff(at(groom), 'months').months) * -1
+}
 
 /**
  * Two guided forms in a row: groom, then bride.
@@ -35,8 +42,11 @@ export default function Matchmaking(){
     const b = role === 'bride' ? saved : bride
     if (role === 'groom') setGroom(saved)
     else setBride(saved)
-    if (g && b) navigate(matchPath(g, b))
-    else setStage(role === 'groom' ? 'bride' : 'groom')
+    if (g && b) {
+      // tradition prefers an older groom: ask before matching with an older bride
+      if (brideOlderMonths(g, b) > 0) setStage('age')
+      else navigate(matchPath(g, b))
+    } else setStage(role === 'groom' ? 'bride' : 'groom')
   }
 
   const steps = [
@@ -49,7 +59,7 @@ export default function Matchmaking(){
       <h1 className="font-display text-3xl font-bold">{t('match_title')}</h1>
       <p className="text-ink-500 mt-1 mb-6">{t('match_sub')}</p>
 
-      {stage !== 'role' && (
+      {stage !== 'role' && stage !== 'age' && (
         <ol className="flex items-center gap-3 mb-4">
           {steps.map((s, i) => (
             <li key={s.key} className="flex items-center gap-3 flex-1">
@@ -65,6 +75,21 @@ export default function Matchmaking(){
           ))}
         </ol>
       )}
+
+      {stage === 'age' && groom && bride && (() => {
+        const months = brideOlderMonths(groom, bride)
+        const gap = months >= 12 ? t('age_years', { n: Math.floor(months / 12) }) : t('age_months', { n: months })
+        return (
+          <div className="card card-pad sm:p-8 animate-rise">
+            <h2 className="font-display text-2xl font-semibold mb-2">{t('age_q_title')}</h2>
+            <p className="text-ink-700 mb-5">{t('age_q_body', { bride: bride.name, groom: groom.name, gap })}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button onClick={() => navigate(matchPath(groom, bride))} className="btn-primary">{t('age_continue')}</button>
+              <button onClick={() => { setBride(null); setStage('bride') }} className="btn-outline">{t('age_choose_again')}</button>
+            </div>
+          </div>
+        )
+      })()}
 
       {stage === 'role' && (
         <div className="card card-pad sm:p-8 animate-rise">
