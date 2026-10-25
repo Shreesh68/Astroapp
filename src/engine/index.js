@@ -1,5 +1,5 @@
 // The astrology engine, running on the device — no server needed.
-import { ashtakoota } from './ashtakoota'
+import { ashtakoota, decide } from './ashtakoota'
 import { computeChart, kujaCompatibility } from './chart'
 
 export { ChartInputError, computeChart } from './chart'
@@ -12,6 +12,8 @@ export function computeMatch(groomChart, brideChart) {
     { kuja: groomChart.manglik, samya: groomChart.dosha_samya },
     { kuja: brideChart.manglik, samya: brideChart.dosha_samya },
   )
+  // Kuja dosha in only one chart, not balanced by the other, calls for care too
+  if (!match.manglik.ok) Object.assign(match, decide(match.total, [...match.verdict_reasons, { key: 'kuja', severity: 'caution' }]))
   return match
 }
 

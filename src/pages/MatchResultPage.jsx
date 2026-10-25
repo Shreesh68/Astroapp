@@ -49,10 +49,15 @@ function MatchView({ groom, bride, data }) {
         <p className={`mt-4 font-display text-2xl font-semibold ${verdict.tone === 'good' ? 'text-leaf' : verdict.tone === 'bad' ? 'text-kumkum' : 'text-turmeric-700'}`}>
           {pick(verdict, lang)}
         </p>
-        {m.verdict_reason === 'ekanakshatra' && (
-          <p className="mt-2 mx-auto max-w-lg rounded-xl bg-kumkum-50 px-4 py-3 text-sm text-kumkum">
-            {t('match_ek_reason', { nak: nakName(m.groom.nakshatra_index, lang) })}
-          </p>
+        {m.verdict_reasons?.length > 0 && (
+          <ul className="mt-3 mx-auto max-w-lg space-y-2 text-left text-sm">
+            {m.verdict_reasons.map(r => (
+              <li key={r.key} className={`rounded-xl px-4 py-3 ${r.severity === 'serious' ? 'bg-kumkum-50 text-kumkum' : 'bg-cream text-turmeric-700'}`}>
+                {r.severity === 'serious' ? '✕ ' : '! '}
+                {t(`why_${r.key}`, { nak: nakName(m.groom.nakshatra_index, lang), part: t(`rajju_${m.south.rajju.groom}`) })}
+              </li>
+            ))}
+          </ul>
         )}
         <p className="mt-2 text-sm text-ink-500 max-w-lg mx-auto">{t('match_disclaimer')}</p>
       </section>
@@ -84,6 +89,31 @@ function MatchView({ groom, bride, data }) {
             )
           })}
         </div>
+      </section>
+
+      {/* South Indian checks */}
+      <section className="card card-pad">
+        <h2 className="section-title !mb-1">{t('south_title')}</h2>
+        <p className="text-sm text-ink-500 mb-4">{t('south_intro')}</p>
+        <ul className="space-y-2">
+          {[
+            { key: 'rajju', ok: m.south.rajju.ok, detail: `${t('match_groom')}: ${t(`rajju_${m.south.rajju.groom}`)} · ${t('match_bride')}: ${t(`rajju_${m.south.rajju.bride}`)}` },
+            { key: 'vedha', ok: m.south.vedha.ok, detail: t(m.south.vedha.ok ? 'vedha_ok' : 'vedha_bad') },
+            { key: 'mahendra', ok: m.south.mahendra.ok, soft: true, detail: t('south_count', { n: m.south.mahendra.count }) },
+            { key: 'stree_deergha', ok: m.south.stree_deergha.level === 'good', mid: m.south.stree_deergha.level === 'moderate', soft: true, detail: t('south_count', { n: m.south.stree_deergha.count }) },
+          ].map(c => (
+            <li key={c.key} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-cream px-4 py-3">
+              <span className="min-w-0">
+                <span className="block font-semibold">{t(`south_${c.key}`)}</span>
+                <span className="block text-xs text-ink-500">{t(`south_${c.key}_about`)} · {c.detail}</span>
+              </span>
+              <span className={c.ok ? 'chip-good' : c.mid || c.soft ? 'chip-warn' : 'chip-bad'}>
+                {t(c.ok ? 'south_ok' : c.mid ? 'south_moderate' : c.soft ? 'south_not_met' : 'south_dosha')}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-xs text-ink-300">{t('south_note')}</p>
       </section>
 
       {/* Doshas */}

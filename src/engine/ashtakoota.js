@@ -1,19 +1,20 @@
-// Ashtakoota (Guna Milan) — the 36-point compatibility check, computed from each person's Moon.
-// Same tables and conventions as the original Python backend (backend/ashtakoota.py).
+// Ashtakoota (Guna Milan) — the 36-point compatibility check — plus the South Indian checks families in
+// Karnataka weigh most (Rajju, Vedha, Mahendra, Stree Deergha), all from each person's Moon.
+// Point tables follow OnlineJyotish's published bride × groom tables (onlinejyotish.com, marriage matching).
 import { NAKSHATRA, RASHI, RASHI_LORD, mod, nakshatraOf, rashiIndex, relation } from './constants'
 
 // 1. Varna (1): water signs Brahmin, fire Kshatriya, earth Vaishya, air Shudra
 const VARNA_NAMES = ['Shudra', 'Vaishya', 'Kshatriya', 'Brahmin'] // rank 0..3
 const VARNA_OF_RASHI = [2, 1, 0, 3, 2, 1, 0, 3, 2, 1, 0, 3]
 
-// 2. Vashya (2) — rows = groom, cols = bride
+// 2. Vashya (2) — rows = BRIDE's group, columns = GROOM's group
 const VASHYA_NAMES = ['Chatushpada', 'Manava', 'Jalachara', 'Vanachara', 'Keeta']
 const VASHYA_TABLE = [
-  [2, 1, 1, 0.5, 1],
+  [2, 1, 1, 0, 1],
   [1, 2, 0.5, 0, 1],
   [1, 0.5, 2, 1, 1],
-  [0.5, 0, 1, 2, 0],
-  [1, 1, 1, 0, 2],
+  [0, 0, 1, 2, 0],
+  [1, 0, 1, 0, 2],
 ]
 
 function vashyaGroup(lon) {
@@ -66,7 +67,7 @@ function maitri(a, b) {
   return MAITRI_POINTS[pair.join(',')]
 }
 
-// 6. Gana (6) — rows = groom, cols = bride
+// 6. Gana (6) — rows = BRIDE's gana, columns = GROOM's gana
 const GANA_NAMES = ['Deva', 'Manushya', 'Rakshasa']
 const GANA_OF_NAKSHATRA = [0, 1, 2, 1, 0, 1, 0, 0, 2, 2, 1, 1, 0, 2, 0, 2, 0, 2, 2, 1, 1, 0, 2, 2, 1, 1, 0]
 const GANA_TABLE = [
@@ -86,6 +87,16 @@ const NADI_OF_NAKSHATRA = [0, 1, 2, 2, 1, 0, 0, 1, 2, 2, 1, 0, 0, 1, 2, 2, 1, 0,
 // when the padas differ (Rohini, Ardra, Pushya, Magha, Vishakha, Shravana, Uttara Bhadrapada, Revati).
 const SHARED_STAR_PERMITTED = [3, 5, 7, 9, 15, 21, 25, 26]
 
+// ── South Indian checks ──
+// Rajju: the 27 stars on five parts of a body; both stars in one part is Rajju dosha (Siro most serious)
+const RAJJU_NAMES = ['Pada', 'Kati', 'Nabhi', 'Kantha', 'Siro']
+const RAJJU_OF_NAKSHATRA = [0, 1, 2, 3, 4, 3, 2, 1, 0, 0, 1, 2, 3, 4, 3, 2, 1, 0, 0, 1, 2, 3, 4, 3, 2, 1, 0]
+// Vedha: stars that obstruct each other (Mrigashira, Chitra and Dhanishta all with one another)
+const VEDHA_PAIRS = [[0, 17], [1, 16], [2, 15], [3, 14], [5, 21], [6, 20], [7, 19], [8, 18], [9, 26], [10, 25], [11, 24], [12, 23], [4, 13], [4, 22], [13, 22]]
+const vedha = (a, b) => VEDHA_PAIRS.some(([x, y]) => (x === a && y === b) || (x === b && y === a))
+// counts are from the bride's star (her star = 1) to the groom's
+const MAHENDRA_COUNTS = [4, 7, 10, 13, 16, 19, 22, 25]
+
 const title = s => s[0].toUpperCase() + s.slice(1)
 
 function describeMoon(lon) {
@@ -99,6 +110,7 @@ function describeMoon(lon) {
     yoni: YONI_NAMES[YONI_OF_NAKSHATRA[nak]],
     gana: GANA_NAMES[GANA_OF_NAKSHATRA[nak]],
     nadi: NADI_NAMES[NADI_OF_NAKSHATRA[nak]],
+    rajju: RAJJU_NAMES[RAJJU_OF_NAKSHATRA[nak]],
   }
 }
 
@@ -118,7 +130,7 @@ export function ashtakoota(groomMoonLon, brideMoonLon) {
 
   add('varna', VARNA_OF_RASHI[gr] >= VARNA_OF_RASHI[br] ? 1 : 0, 1, `Groom ${g.varna}, bride ${b.varna}`)
 
-  add('vashya', VASHYA_TABLE[vashyaGroup(groomMoonLon)][vashyaGroup(brideMoonLon)], 2, `Groom ${g.vashya}, bride ${b.vashya}`)
+  add('vashya', VASHYA_TABLE[vashyaGroup(brideMoonLon)][vashyaGroup(groomMoonLon)], 2, `Groom ${g.vashya}, bride ${b.vashya}`)
 
   const tBg = taraFrom(bn, gn) // groom's star counted from bride's
   const tGb = taraFrom(gn, bn)
@@ -130,7 +142,7 @@ export function ashtakoota(groomMoonLon, brideMoonLon) {
   add('graha_maitri', maitri(g.rashi_lord, b.rashi_lord), 5,
     `Rashi lords ${title(g.rashi_lord)} and ${title(b.rashi_lord)}`)
 
-  add('gana', GANA_TABLE[GANA_OF_NAKSHATRA[gn]][GANA_OF_NAKSHATRA[bn]], 6, `Groom ${g.gana}, bride ${b.gana}`)
+  add('gana', GANA_TABLE[GANA_OF_NAKSHATRA[bn]][GANA_OF_NAKSHATRA[gn]], 6, `Groom ${g.gana}, bride ${b.gana}`)
 
   const posGFromB = mod(gr - br, 12) + 1
   const posBFromG = mod(br - gr, 12) + 1
@@ -167,13 +179,35 @@ export function ashtakoota(groomMoonLon, brideMoonLon) {
   }
   if (kootas[5].score === 0) doshas.push({ key: 'gana', cancelled_reason: null })
 
-  const total = kootas.reduce((sum, k) => sum + k.score, 0)
-  // a shared birth star that tradition does not permit outweighs any guna score
-  const ekanakshatra = doshas.find(d => d.key === 'ekanakshatra' && !d.cancelled_reason)
-  return {
-    groom: g, bride: b, kootas, total, max: 36,
-    verdict: ekanakshatra ? 'not_recommended' : verdict(total),
-    verdict_reason: ekanakshatra ? 'ekanakshatra' : null,
-    doshas,
+  // South Indian checks. A shared star is judged by the Ekanakshatra rule above, so Rajju applies only
+  // when the stars differ.
+  const count = mod(gn - bn, 27) + 1
+  const south = {
+    rajju: { bride: b.rajju, groom: g.rajju, ok: gn === bn || RAJJU_OF_NAKSHATRA[gn] !== RAJJU_OF_NAKSHATRA[bn] },
+    vedha: { ok: !vedha(gn, bn) },
+    mahendra: { count, ok: MAHENDRA_COUNTS.includes(count) },
+    stree_deergha: { count, level: count > 13 ? 'good' : count > 9 ? 'moderate' : 'not_met' },
   }
+  if (!south.rajju.ok) doshas.push({ key: 'rajju', cancelled_reason: null, part: g.rajju })
+  if (!south.vedha.ok) doshas.push({ key: 'vedha', cancelled_reason: null })
+
+  const total = kootas.reduce((sum, k) => sum + k.score, 0)
+  // serious doshas outweigh any guna score; Nadi/Bhakoot left uncancelled call for care
+  const active = key => doshas.some(d => d.key === key && !d.cancelled_reason)
+  const reasons = [
+    ...['rajju', 'vedha', 'ekanakshatra'].filter(active).map(key => ({ key, severity: 'serious' })),
+    ...(total < 18 ? [{ key: 'low_score', severity: 'serious' }] : []),
+    ...['nadi', 'bhakoot'].filter(active).map(key => ({ key, severity: 'caution' })),
+  ]
+  return { groom: g, bride: b, kootas, total, max: 36, doshas, south, ...decide(total, reasons) }
+}
+
+const RANK = ['not_recommended', 'average', 'very_good', 'excellent']
+
+/** The verdict from the score, lowered by the reasons: any serious one → not recommended, a caution → at most average. */
+export function decide(total, reasons) {
+  let v = verdict(total)
+  if (reasons.some(r => r.severity === 'serious')) v = 'not_recommended'
+  else if (reasons.some(r => r.severity === 'caution') && RANK.indexOf(v) > RANK.indexOf('average')) v = 'average'
+  return { verdict: v, verdict_reasons: reasons }
 }
