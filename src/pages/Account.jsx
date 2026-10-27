@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
-import { logOut, useAccount } from '../lib/account'
+import { deleteAccount, logOut, useAccount } from '../lib/account'
 import { astrologerAvailable } from '../lib/astrologer'
 import { fmtLongDate } from '../lib/dates'
 import { removeProfile, useProfiles } from '../lib/profiles'
@@ -14,7 +14,23 @@ export default function Account() {
   const navigate = useNavigate()
   const { ready, user } = useAccount()
   const { profiles, self } = useProfiles()
-  const [confirming, setConfirming] = useState(null) // a kundli id, or 'logout'
+  const [confirming, setConfirming] = useState(null) // a kundli id, 'logout' or 'delete'
+  const [deleting, setDeleting] = useState(false)
+  const [deleteFailed, setDeleteFailed] = useState(false)
+
+  async function onDelete() {
+    setDeleting(true)
+    setDeleteFailed(false)
+    try {
+      await deleteAccount()
+      navigate('/', { replace: true })
+    } catch (err) {
+      console.error('delete account', err)
+      setDeleteFailed(true)
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   if (!ready) return null
   if (!user) return <Navigate to="/login" replace />
@@ -97,8 +113,20 @@ export default function Account() {
               <button onClick={() => setConfirming(null)} className="btn-ghost">{t('cancel')}</button>
             </div>
           </div>
+        ) : confirming === 'delete' ? (
+          <div className="card card-pad">
+            <p className="text-sm mb-3">{t('acc_delete_q', { n: profiles.length })}</p>
+            {deleteFailed && <p className="text-sm text-kumkum mb-3">{t('acc_delete_failed')}</p>}
+            <div className="flex flex-wrap justify-center gap-2">
+              <button disabled={deleting} onClick={onDelete} className="btn-primary !bg-kumkum">{deleting ? '…' : t('acc_delete_yes')}</button>
+              <button disabled={deleting} onClick={() => { setConfirming(null); setDeleteFailed(false) }} className="btn-ghost">{t('cancel')}</button>
+            </div>
+          </div>
         ) : (
-          <button onClick={() => setConfirming('logout')} className="btn-ghost text-kumkum">{t('acc_logout')}</button>
+          <div className="flex flex-col items-center gap-1">
+            <button onClick={() => setConfirming('logout')} className="btn-ghost text-kumkum">{t('acc_logout')}</button>
+            <button onClick={() => setConfirming('delete')} className="text-xs text-ink-500 underline py-2">{t('acc_delete')}</button>
+          </div>
         )}
       </section>
     </div>

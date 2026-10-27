@@ -5,11 +5,21 @@ const BULLET = /^\s*(?:[-*•]|\d+[.)])\s+/
 /** Just enough Markdown for the astrologer's answers: paragraphs, lists, headings and **bold**. */
 export function Answer({ text }) {
   if (!text) return null
+  // a block can mix plain lines and list items ("Why — in your chart" straight above its bullets),
+  // so each block is cut into runs of one kind
+  const runs = []
+  for (const block of text.split(/\n{2,}/)) {
+    let run = null
+    for (const line of block.split('\n').filter(l => l.trim())) {
+      const list = BULLET.test(line)
+      if (!run || run.list !== list) runs.push(run = { list, lines: [] })
+      run.lines.push(line)
+    }
+  }
   return (
     <div className="space-y-2 leading-relaxed">
-      {text.split(/\n{2,}/).map((block, i) => {
-        const lines = block.split('\n').filter(l => l.trim())
-        if (lines.length && lines.every(l => BULLET.test(l))) {
+      {runs.map(({ list, lines }, i) => {
+        if (list) {
           const ordered = /^\s*\d/.test(lines[0])
           const List = ordered ? 'ol' : 'ul'
           return (

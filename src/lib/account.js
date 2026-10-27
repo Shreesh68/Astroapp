@@ -121,6 +121,34 @@ export async function logOut() {
   await FirebaseAuthentication.signOut()
 }
 
+/**
+ * Delete the account for good: every kundli stored in it, then the login itself. Firebase asks for a fresh
+ * sign-in before deleting a login that was opened long ago; then the person picks their Google account
+ * once more and the deletion goes ahead.
+ */
+export async function deleteAccount() {
+  const { user } = await FirebaseAuthentication.getCurrentUser()
+  if (!user) return
+  const ref = collection(user.uid)
+  const { snapshots } = await FirebaseFirestore.getCollection({ reference: ref })
+  if (snapshots.length) {
+    await FirebaseFirestore.writeBatch({ operations: snapshots.map(s => ({ type: 'delete', reference: `${ref}/${s.id}` })) })
+  }
+  try {
+    await FirebaseAuthentication.deleteUser()
+  } catch (err) {
+    if (!/recent|credential|requires/i.test(String(err?.message || err))) throw err
+    await FirebaseAuthentication.signInWithGoogle()
+    await FirebaseAuthentication.deleteUser()
+  }
+  // nothing of the account stays on this phone either: its kundlis and the AI chats about them
+  stopSync()
+  try {
+    Object.keys(localStorage).filter(k => k.startsWith('km_chat_')).forEach(k => localStorage.removeItem(k))
+  } catch { /* storage unavailable */ }
+  setState({ user: null })
+}
+
 /** Turn a Firebase error message into one of the app's short reasons. */
 export function loginError(message = '') {
   console.warn('phone login:', message)

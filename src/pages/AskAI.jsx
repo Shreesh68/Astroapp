@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { DateTime } from 'luxon'
 import { useLanguage } from '../contexts/LanguageContext'
 import { ask, chatKey, clearChat, useChat } from '../lib/chats'
+import { reportLink } from '../lib/contact'
 import { getChart } from '../lib/api'
 import { nakName, planetName, rashiName } from '../lib/astro'
 import { fmtLongDate, fmtTime } from '../lib/dates'
@@ -79,14 +80,14 @@ function Shell({ subtitle, actions, follow, children, composer }) {
   )
 }
 
-function Bubble({ from, time, ticks, children }) {
+function Bubble({ from, time, ticks, extra, children }) {
   const mine = from === 'me'
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'} animate-rise`}>
       <div className={`relative max-w-[85%] rounded-xl px-3 pb-1.5 pt-2 text-[15px] leading-relaxed text-ink shadow-sm
         ${mine ? 'rounded-tr-none bg-[#D9FDD3]' : 'rounded-tl-none bg-white'}`}>
         {children}
-        {time && <span className="mt-0.5 flex items-center justify-end text-[10px] text-ink-500">{time}{ticks}</span>}
+        {time && <span className="mt-0.5 flex items-center justify-end gap-2 text-[10px] text-ink-500">{extra}<span className="flex items-center">{time}{ticks}</span></span>}
       </div>
     </div>
   )
@@ -343,7 +344,8 @@ function ChartChat({ profile }) {
         )}
       </Bubble>
       {messages.map((m, i) => (
-        <Bubble key={i} from={m.role === 'user' ? 'me' : 'bot'} time={m.time} ticks={m.role === 'user' && m.status !== 'failed' ? <Ticks status={m.status || 'read'} /> : null}>
+        <Bubble key={i} from={m.role === 'user' ? 'me' : 'bot'} time={m.time} ticks={m.role === 'user' && m.status !== 'failed' ? <Ticks status={m.status || 'read'} /> : null}
+          extra={m.role === 'assistant' && <a href={reportLink(messages[i - 1]?.content, m.content)} className="mr-auto underline">⚑ {t('ask_report')}</a>}>
           {m.role === 'user' ? <p className="whitespace-pre-wrap">{m.content}</p> : <Answer text={m.content} />}
         </Bubble>
       ))}

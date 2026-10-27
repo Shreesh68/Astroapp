@@ -1,6 +1,7 @@
 // AIAstrology chat server (Cloudflare Worker). It holds the astrologer's instructions and relays one
 // conversation step at a time to a Workers AI model, streaming the reply straight back. The app runs
 // every calculation the model asks for on the phone (src/lib/astrologer.js), so this stays tiny.
+import { DELETE_ACCOUNT, PRIVACY } from './pages.js'
 import { TOOL_SPECS } from '../../src/engine/toolSpecs.js'
 
 const SYSTEM_PROMPT = `You are Jyotishi, the astrologer inside AIAstrology, an app for Vedic birth charts, Ashtakoota kundli matching and Panchang used mostly by families in Karnataka.
@@ -110,6 +111,8 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { headers: cors })
     const url = new URL(request.url)
     if (url.pathname === '/') return new Response('ok', { headers: cors })
+    const html = { '/privacy': PRIVACY, '/delete-account': DELETE_ACCOUNT }[url.pathname.replace(/\/$/, '')]
+    if (html && request.method === 'GET') return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' } })
     if (url.pathname !== '/chat' || request.method !== 'POST') return fail(404, 'not_found')
 
     let body
