@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">KannadaAstro</string>
-    <string name="title_activity_main">KannadaAstro</string>
+    <string name="app_name">AIAstrology</string>
+    <string name="title_activity_main">AIAstrology</string>
     <string name="package_name">com.karnatakamatch.app</string>
     <string name="custom_url_scheme">com.karnatakamatch.app</string>
 </resources>

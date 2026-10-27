@@ -1,6 +1,6 @@
 {
   "appId": "com.karnatakamatch.app",
-  "appName": "KannadaAstro",
+  "appName": "AIAstrology",
   "webDir": "dist",
   "android": {
     "backgroundColor": "#FDF8F0"

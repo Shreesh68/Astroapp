@@ -1,7 +1,7 @@
 // UI strings. Use {name}-style placeholders; t('key', { name }) fills them in.
 export const STRINGS = {
   en: {
-    brand: 'KannadaAstro',
+    brand: 'AIAstrology',
     nav_home: 'Home', nav_chart: 'Birth Chart', nav_match: 'Matching', nav_panchang: 'Panchang', nav_about: 'About',
     lang_toggle: 'ಕನ್ನಡ',
 
@@ -105,7 +105,7 @@ export const STRINGS = {
     act_share: 'Share', act_whatsapp: 'WhatsApp', act_print: 'Save as PDF', act_save: 'Save to my people', act_saved: 'Saved',
     act_match: 'Find a match for {name}',
     copied: 'Link copied',
-    share_text_chart: '{name}’s birth chart on KannadaAstro',
+    share_text_chart: '{name}’s birth chart on AIAstrology',
 
     // matchmaking
     match_title: 'Kundli matching',
@@ -288,10 +288,10 @@ export const STRINGS = {
     ask_note: 'Answers are written by a free AI model from this chart. Treat them as guidance, not certainty.',
 
     // about
-    about_title: 'About KannadaAstro',
+    about_title: 'About AIAstrology',
   },
   kn: {
-    brand: 'ಕನ್ನಡ ಆಸ್ಟ್ರೋ',
+    brand: 'AIAstrology',
     nav_home: 'ಮುಖಪುಟ', nav_chart: 'ಜಾತಕ', nav_match: 'ಹೊಂದಾಣಿಕೆ', nav_panchang: 'ಪಂಚಾಂಗ', nav_about: 'ನಮ್ಮ ಬಗ್ಗೆ',
     lang_toggle: 'English',
 
@@ -390,7 +390,7 @@ export const STRINGS = {
     act_share: 'ಹಂಚಿಕೊಳ್ಳಿ', act_whatsapp: 'ವಾಟ್ಸ್‌ಆಪ್', act_print: 'PDF ಉಳಿಸಿ', act_save: 'ನನ್ನವರಲ್ಲಿ ಉಳಿಸಿ', act_saved: 'ಉಳಿಸಲಾಗಿದೆ',
     act_match: '{name} ಅವರಿಗೆ ಹೊಂದಾಣಿಕೆ ನೋಡಿ',
     copied: 'ಲಿಂಕ್ ನಕಲಿಸಲಾಗಿದೆ',
-    share_text_chart: '{name} ಅವರ ಜಾತಕ — ಕನ್ನಡ ಆಸ್ಟ್ರೋ',
+    share_text_chart: '{name} ಅವರ ಜಾತಕ — AIAstrology',
 
     match_title: 'ಕುಂಡಲಿ ಹೊಂದಾಣಿಕೆ',
     match_sub: 'ಇಬ್ಬರ ಚಂದ್ರ ಸ್ಥಿತಿಯಿಂದ ಸಾಂಪ್ರದಾಯಿಕ ಅಷ್ಟಕೂಟ (36 ಗುಣ) ಹೊಂದಾಣಿಕೆ.',
@@ -567,7 +567,7 @@ export const STRINGS = {
     ask_err_too_many_steps: 'ಈ ಪ್ರಶ್ನೆಗೆ ತುಂಬಾ ಲೆಕ್ಕಾಚಾರ ಬೇಕಾಯಿತು. ಪ್ರಶ್ನೆಯನ್ನು ಸ್ವಲ್ಪ ಚಿಕ್ಕದಾಗಿ ಕೇಳಿ.',
     ask_note: 'ಉತ್ತರಗಳನ್ನು AI ಈ ಜಾತಕದಿಂದ ರಚಿಸುತ್ತದೆ. ಇವು ಮಾರ್ಗದರ್ಶನ ಮಾತ್ರ, ಖಚಿತ ಭವಿಷ್ಯವಲ್ಲ.',
 
-    about_title: 'ಕನ್ನಡ ಆಸ್ಟ್ರೋ ಬಗ್ಗೆ',
+    about_title: 'AIAstrology ಬಗ್ಗೆ',
   },
 }
 
