@@ -42,3 +42,7 @@ astrology-api-demo/vendor/
 # Firebase CLI
 firebase-debug.log
 .firebase/
+
+# AI evaluation runs
+eval/reports/
+eval/.astrologer.bundle.mjs

@@ -74,3 +74,71 @@ describe('server guard: death and self-harm never reach the model', () => {
     ])).toBeNull()
   })
 })
+
+describe('reply language (the bug where English chats answered in Kannada)', async () => {
+  const { withReplyLanguage } = await import('../worker/src/index.js')
+  const convo = [
+    { role: 'user', content: 'ನನ್ನ ದಶೆ ಏನು?' }, { role: 'assistant', content: 'ಚಂದ್ರ ಮಹಾದಶೆ…' }, { role: 'user', content: 'ನನ್ನ ಆರೋಗ್ಯ?' },
+  ]
+
+  it('attaches the instruction to the newest question only', () => {
+    const out = withReplyLanguage(convo, 'en')
+    expect(out.at(-1).content).toMatch(/Reply language: English/)
+    expect(out[0].content).toBe(convo[0].content)
+    expect(out[1].content).toBe(convo[1].content)
+  })
+
+  it('works the other way round too', () => {
+    expect(withReplyLanguage([{ role: 'user', content: 'What about my health?' }], 'kn')[0].content).toMatch(/Reply language: Kannada/)
+  })
+
+  it('does not change the original conversation', () => {
+    withReplyLanguage(convo, 'en')
+    expect(convo.at(-1).content).toBe('ನನ್ನ ಆರೋಗ್ಯ?')
+  })
+})
+
+describe('marriage questions from people who may already be married', () => {
+  const at = date => ({ ...ravi, name: 'X', date })
+  const focus = (p, today) => topicFocus(p, chartFor(p), today, 'marriage').join('\n')
+
+  it('gives the age and the windows that have already passed', () => {
+    const lines = focus(at('1985-08-19'), '2026-10-27')
+    expect(lines).toMatch(/Age today: 41\. Marital status: not known to the app\./)
+    expect(lines).toMatch(/Past periods that activated marriage/)
+    expect(lines).toMatch(/Past double-transit windows/)
+  })
+
+  it('says it is too early for someone under 18', () => {
+    const lines = focus(at('2011-05-10'), '2026-10-27')
+    expect(lines).toMatch(/Age today: 15/)
+    expect(lines).toMatch(/Under 18: too early/)
+    expect(lines).not.toMatch(/Past periods/)
+  })
+
+  it('other topics carry no age or past windows', () => {
+    expect(topicFocus(ravi, chartFor(ravi), TODAY, 'career').join('\n')).not.toMatch(/Age today|Past periods/)
+  })
+})
+
+describe('fact sheets never fail, for any chart (the suggested-question bug)', async () => {
+  const { dashaFocus } = await import('../src/engine/analysis')
+  it('dasha sheet in a Ketu mahadasha (Rahu and Ketu have no natural friendships)', () => {
+    const shreesh = { name: 'Shreesh', gender: 'male', date: '2000-08-19', time: '01:10', lat: 14.4271622, lon: 74.4117058, tz: 'Asia/Kolkata', time_known: true }
+    const lines = dashaFocus(shreesh, chartFor(shreesh), '2026-10-27').join('\n')
+    expect(lines).toMatch(/Ketu mahadasha/)
+    expect(lines).toMatch(/Ketu acts through its sign lord/)
+  })
+
+  it('every sheet works for 300 birth dates across 1930–2025 (all dasha lords, both birth-time cases)', () => {
+    const topics = ['career', 'marriage', 'money', 'health', 'education', 'children', 'home_property', 'foreign_travel', 'spirituality']
+    for (let i = 0; i < 300; i++) {
+      const d = new Date(Date.UTC(1930, 0, 1) + i * 116 * 864e5).toISOString().slice(0, 10)
+      const b = { name: 'T', gender: i % 2 ? 'male' : 'female', date: d, time: `${String(i % 24).padStart(2, '0')}:15`, lat: 12 + (i % 7), lon: 75 + (i % 5), tz: 'Asia/Kolkata', time_known: i % 5 !== 0 }
+      const c = chartFor(b)
+      expect(() => dashaFocus(b, c, TODAY)).not.toThrow()
+      for (const t of topics) expect(() => topicFocus(b, c, TODAY, t)).not.toThrow()
+      expect(() => analyseChart(b, c, TODAY)).not.toThrow()
+    }
+  }, 120000)
+})

@@ -9,7 +9,8 @@
     "build:android": "vite build --mode android && cap sync android",
     "android": "npm run build:android && cap open android",
     "deploy:chat": "wrangler deploy --config worker/wrangler.jsonc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval:ai": "node eval/run.mjs"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "8.5.2",

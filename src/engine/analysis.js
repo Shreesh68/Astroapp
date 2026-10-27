@@ -20,7 +20,7 @@ const SPECIAL_ASPECTS = { mars: [4, 8], jupiter: [5, 9], saturn: [3, 10] }
 const KENDRA = [1, 4, 7, 10], TRIKONA = [1, 5, 9], DUSTHANA = [6, 8, 12]
 const HOUSE_THEME = ['self, body, temperament', 'wealth, family, speech', 'courage, siblings, efforts', 'home, mother, property, peace of mind',
   'children, intelligence, studies, past merit', 'health issues, debts, rivals, service', 'marriage, partners, business',
-  'longevity, sudden changes, hidden matters', 'fortune, father, dharma, higher learning', 'career, status, actions',
+  'sudden changes, research, hidden matters, inheritance', 'fortune, father, dharma, higher learning', 'career, status, actions',
   'gains, income, friends, wishes', 'expenses, losses, foreign lands, moksha']
 
 // life areas: main house, supporting houses, natural significators (karakas)
@@ -217,42 +217,141 @@ export function topicFocus(birth, chart, today, topic, years = 3) {
   const occ = GRAHAS.filter(n => P[n].house === t.house)
   lines.push(`  In that house: ${occ.map(title).join(', ') || 'no planets'}. Significator${karakas.length > 1 ? 's' : ''}: ${karakas.map(k => `${title(k)} in house ${P[k].house}${dignity(k, P[k]) ? ` (${dignity(k, P[k])})` : ''}`).join(', ')}.`)
 
-  // dasha periods that switch the area on
+  // what switches the area on between two dates: dasha periods, Jupiter/Saturn on the house, and both at once
   const day = iso => iso.slice(0, 10)
-  const periods = []
-  for (const m of chart.dasha.periods) {
-    if (day(m.end) <= today || day(m.start) > until) continue
-    for (const a of m.antardashas) {
-      if (day(a.end) <= today || day(a.start) > until) continue
-      const why = []
-      if (a.lord === lord || m.lord === lord) why.push(`${title(lord)} is your ${ord(t.house)} lord`)
-      if (P[a.lord].house === t.house) why.push(`${title(a.lord)} sits in your ${ord(t.house)} house`)
-      if (karakas.includes(a.lord)) why.push(`${title(a.lord)} is the significator`)
-      const supporting = rules(a.lord).filter(h => t.also.includes(h))
-      if (supporting.length) why.push(`${title(a.lord)} rules supporting house ${supporting.join('&')}`)
-      if (why.length) periods.push(`  ${span(day(a.start) < today ? today : day(a.start), day(a.end))}: ${title(m.lord)}–${title(a.lord)} period (${why.join('; ')})`)
+  function windowsBetween(from, to) {
+    const periods = []
+    for (const m of chart.dasha.periods) {
+      if (day(m.end) <= from || day(m.start) > to) continue
+      for (const a of m.antardashas) {
+        if (day(a.end) <= from || day(a.start) > to) continue
+        const why = []
+        if (a.lord === lord || m.lord === lord) why.push(`${title(lord)} is your ${ord(t.house)} lord`)
+        if (P[a.lord].house === t.house) why.push(`${title(a.lord)} sits in your ${ord(t.house)} house`)
+        if (karakas.includes(a.lord)) why.push(`${title(a.lord)} is the significator`)
+        const supporting = rules(a.lord).filter(h => t.also.includes(h))
+        if (supporting.length) why.push(`${title(a.lord)} rules supporting house ${supporting.join('&')}`)
+        const a0 = day(a.start) < from ? from : day(a.start), a1 = day(a.end) > to ? to : day(a.end)
+        if (why.length) periods.push(`  ${span(a0, a1)}: ${title(m.lord)}–${title(a.lord)} period (${why.join('; ')})`)
+      }
+    }
+    // transits: when Jupiter / Saturn occupy or aspect the main house (from the Lagna)
+    const influence = planet => {
+      const res = signChanges(birth, chart, { planet, start_date: from, end_date: to })
+      const stays = [{ sign: RASHI.indexOf(res.sign_on_start_date), from }, ...res.changes.map(c => ({ sign: RASHI.indexOf(c.to), from: c.date }))]
+      return stays.map((x, i) => ({ ...x, to: stays[i + 1]?.from || to, house: houseOf(x.sign) }))
+        .map(x => ({ ...x, hits: x.house === t.house ? `in your ${ord(t.house)} house` : aspectedHouses(planet, x.house).includes(t.house) ? `aspecting your ${ord(t.house)} house from your ${ord(x.house)}` : null }))
+    }
+    const jup = influence('jupiter'), sat = influence('saturn')
+    const show = (planet, list) => list.filter(x => x.hits).map(x => `  ${title(planet)} ${x.hits} (${RASHI[x.sign]}): ${span(x.from, x.to)}`)
+    const doubles = []
+    for (const j of jup.filter(x => x.hits)) for (const x of sat.filter(y => y.hits)) {
+      const a = j.from > x.from ? j.from : x.from, b = j.to < x.to ? j.to : x.to
+      if (a < b) doubles.push(`  ${span(a, b)}`)
+    }
+    return { periods, transits: [...show('jupiter', jup), ...show('saturn', sat)], doubles }
+  }
+
+  // marriage: the person may already be married — give their age and the windows that have passed
+  if (topic === 'marriage') {
+    const born = DateTime.fromISO(birth.date), now = DateTime.fromISO(today)
+    const age = Math.floor(now.diff(born, 'years').years)
+    lines.push(`Age today: ${age}. Marital status: not known to the app.`)
+    if (age < 18) lines.push('Under 18: too early to look at marriage timing.')
+    else {
+      // from 18 (at most the last 20 years), the windows that have already passed
+      const from = DateTime.max(born.plus({ years: 18 }), now.minus({ years: 20 })).toISODate()
+      const past = windowsBetween(from, today)
+      lines.push(past.periods.length ? `Past periods that activated marriage (from ${fmtMonth(from)}):` : 'Past periods that activated marriage: none strongly.', ...past.periods)
+      lines.push(past.doubles.length ? 'Past double-transit windows (strongest past windows):' : 'Past double-transit windows: none.', ...past.doubles)
     }
   }
-  lines.push(periods.length ? 'Periods that activate it:' : 'Periods that activate it: none strongly in this span.', ...periods)
 
-  // transits: when Jupiter / Saturn occupy or aspect the main house (from the Lagna)
-  const influence = planet => {
-    const res = signChanges(birth, chart, { planet, start_date: today, end_date: until })
-    const stays = [{ sign: RASHI.indexOf(res.sign_on_start_date), from: today }, ...res.changes.map(c => ({ sign: RASHI.indexOf(c.to), from: c.date }))]
-    return stays.map((s, i) => ({ ...s, to: stays[i + 1]?.from || until, house: houseOf(s.sign) }))
-      .map(s => ({ ...s, hits: s.house === t.house ? `in your ${ord(t.house)} house` : aspectedHouses(planet, s.house).includes(t.house) ? `aspecting your ${ord(t.house)} house from your ${ord(s.house)}` : null }))
-  }
-  const jup = influence('jupiter'), sat = influence('saturn')
-  const show = (planet, list) => list.filter(s => s.hits).map(s => `  ${title(planet)} ${s.hits} (${RASHI[s.sign]}): ${span(s.from, s.to)}`)
-  const transitLines = [...show('jupiter', jup), ...show('saturn', sat)]
-  lines.push(transitLines.length ? 'Transits touching it:' : 'Transits touching it: neither Jupiter nor Saturn in this span.', ...transitLines)
+  const next = windowsBetween(today, until)
+  lines.push(next.periods.length ? 'Periods that activate it:' : 'Periods that activate it: none strongly in this span.', ...next.periods)
+  lines.push(next.transits.length ? 'Transits touching it:' : 'Transits touching it: neither Jupiter nor Saturn in this span.', ...next.transits)
+  lines.push(next.doubles.length ? 'Double transit (Jupiter and Saturn both on it — traditionally the strongest windows):' : 'Double transit: none in this span.', ...next.doubles)
+  return lines
+}
 
-  // double transit: both at once
-  const windows = []
-  for (const j of jup.filter(s => s.hits)) for (const s of sat.filter(x => x.hits)) {
-    const from = j.from > s.from ? j.from : s.from, to = j.to < s.to ? j.to : s.to
-    if (from < to) windows.push(`  ${span(from, to)}`)
+// ── Dasha / bhukti explained ───────────────────────────────────────────────
+
+const DASHA_WORDS = /\b(dasha|dasa|bhukti|bukti|antardasha|antar dasha|mahadasha|maha dasha|current period|planetary period)\b|ದಶೆ|ದಶಾ|ಭುಕ್ತಿ|ಅಂತರ್ದಶೆ|ಮಹಾದಶೆ/i
+
+/** What each graha naturally signifies (karakatva), in plain words. */
+const SIGNIFIES = {
+  sun: 'authority, father, government, health and self-confidence',
+  moon: 'mind, emotions, mother, home comfort and public life',
+  mars: 'energy, courage, property and land, siblings and quick action',
+  mercury: 'intellect, studies, business, communication and skills',
+  jupiter: 'wisdom, teachers, children, wealth, dharma and good fortune',
+  venus: 'marriage and relationships, comforts, vehicles, arts and beauty',
+  saturn: 'hard work, discipline, service, delays that mature into lasting results',
+  rahu: 'ambition, foreign lands, technology and unconventional paths',
+  ketu: 'detachment, spirituality, research and sudden breaks from the past',
+}
+
+/** A dasha question: the period lords, what they do in this chart, how they combine, and what comes next. */
+export function isDashaQuestion(question) {
+  return DASHA_WORDS.test(question)
+}
+
+export function dashaFocus(birth, chart, today) {
+  const known = birth.time_known
+  const ascSign = known ? chart.ascendant.sign_index : chart.planets.moon.sign_index
+  const houseOf = sign => mod(sign - ascSign, 12) + 1
+  const lordOf = h => RASHI_LORD[mod(ascSign + h - 1, 12)]
+  const P = Object.fromEntries(GRAHAS.map(n => [n, { ...chart.planets[n], house: houseOf(chart.planets[n].sign_index) }]))
+  const rules = n => [...Array(12).keys()].map(i => i + 1).filter(h => lordOf(h) === n)
+  const day = iso => iso.slice(0, 10)
+  const maha = chart.dasha.periods.find(m => day(m.start) <= today && today < day(m.end))
+  if (!maha) return []
+  const antar = maha.antardashas.find(a => day(a.start) <= today && today < day(a.end))
+  const yogaLines = analyseChart(birth, chart, today)
+  const yogas = yogaLines.slice(yogaLines.indexOf('Yogas present:') + 1, yogaLines.findIndex(l => l.startsWith('Life areas')))
+
+  const describe = (n, role) => {
+    const p = P[n], d = dignity(n, p), r = rules(n)
+    const themes = [...r.map(h => `${ord(h)} (${HOUSE_THEME[h - 1]})`)]
+    const withHim = GRAHAS.filter(m => m !== n && P[m].house === p.house)
+    const inYogas = yogas.filter(y => y.includes(title(n))).map(y => y.trim().split(' — ')[0])
+    return [
+      `  ${role}: ${title(n)} — sits in your ${ord(p.house)} house (${HOUSE_THEME[p.house - 1]}) in ${RASHI[p.sign_index]}${d ? `, ${d}` : ''}${p.retrograde && n !== 'rahu' && n !== 'ketu' ? ', retrograde' : ''}${withHim.length ? `, with ${withHim.map(title).join(', ')}` : ''}.`,
+      `    Rules: ${themes.length ? themes.join('; ') : `no house (${title(n)} gives the results of its sign lord ${title(RASHI_LORD[p.sign_index])} and the house it sits in)`}.`,
+      `    Naturally signifies: ${SIGNIFIES[n]}.`,
+      ...(inYogas.length ? [`    Part of: ${inYogas.join('; ')}.`] : []),
+    ]
   }
-  lines.push(windows.length ? 'Double transit (Jupiter and Saturn both on it — traditionally the strongest windows):' : 'Double transit: none in this span.', ...windows)
+
+  const lines = [`FOCUS FOR THIS QUESTION — dasha and bhukti (calculated by the app; quote these, do not recompute)`]
+  lines.push(`  Running now: ${title(maha.lord)} mahadasha (${fmtMonth(day(maha.start))} – ${fmtMonth(day(maha.end))})` +
+    (antar ? `, ${title(antar.lord)} bhukti (antardasha) ${fmtMonth(day(antar.start))} – ${fmtMonth(day(antar.end))}` : ''))
+  lines.push(...describe(maha.lord, 'Mahadasha lord'))
+  if (antar && antar.lord !== maha.lord) lines.push(...describe(antar.lord, 'Bhukti lord'))
+  if (antar) {
+    const apart = mod(P[antar.lord].house - P[maha.lord].house, 12) + 1
+    const feel = [6, 8].includes(apart) || [6, 8].includes(14 - apart) ? 'a 6/8 relationship — friction; results come with effort'
+      : [2, 12].includes(apart) ? 'a 2/12 relationship — mixed; watch expenses and effort'
+      : [3, 11].includes(apart) ? 'a 3/11 relationship — growth, effort that pays and gains'
+      : [1, 4, 7, 10].includes(apart) ? 'kendra to each other — they work together'
+      : [5, 9].includes(apart) ? 'trikona to each other — supportive and fortunate'
+      : 'a neutral relationship'
+    const node = n => n === 'rahu' || n === 'ketu'
+    const nat = antar.lord === maha.lord ? 'the same planet'
+      // Rahu and Ketu have no natural friendships of their own: they act through the lord of their sign
+      : node(maha.lord) || node(antar.lord) ? `${[maha.lord, antar.lord].filter(node).map(n => `${title(n)} acts through its sign lord ${title(RASHI_LORD[P[n].sign_index])}`).join('; ')}`
+      : `${title(maha.lord)} regards ${title(antar.lord)} ${{ friend: 'as a friend', enemy: 'as an enemy', neutral: 'as neutral' }[relation(maha.lord, antar.lord)]}`
+    lines.push(`  How they combine: the bhukti lord is in the ${ord(apart)} house from the mahadasha lord (${feel}); ${nat}.`)
+  }
+  lines.push('  Coming bhuktis in this mahadasha:')
+  for (const a of maha.antardashas.filter(x => day(x.start) > today)) {
+    const r = rules(a.lord)
+    lines.push(`    ${fmtMonth(day(a.start))} – ${fmtMonth(day(a.end))}: ${title(a.lord)} bhukti — ${r.length ? `rules ${r.map(ord).join(' & ')}, ` : ''}sits in your ${ord(P[a.lord].house)} (${HOUSE_THEME[P[a.lord].house - 1].split(',')[0]})`)
+  }
+  const next = chart.dasha.periods[chart.dasha.periods.indexOf(maha) + 1]
+  if (next) {
+    const r = rules(next.lord)
+    lines.push(`  Next mahadasha: ${title(next.lord)} from ${fmtMonth(day(next.start))} for ${next.years} years — ${r.length ? `rules ${r.map(ord).join(' & ')}, ` : ''}sits in your ${ord(P[next.lord].house)} house.`)
+  }
   return lines
 }

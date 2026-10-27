@@ -5,10 +5,11 @@ import { DateTime } from 'luxon'
 import { chartFor, computeMatch } from '../engine'
 import { RASHI_LORD } from '../engine/constants'
 import { runTool, saturnFromMoon } from '../engine/tools'
-import { analyseChart, topicFocus, topicOf } from '../engine/analysis'
+import { analyseChart, dashaFocus, isDashaQuestion, topicFocus, topicOf } from '../engine/analysis'
 import { ApiError, toPayload } from './api'
 import { findPlace } from './places'
 import { readProfiles, samePerson } from './profiles'
+import { buildFacts, checkAnswer, correctionRequest } from './factcheck'
 
 const CHAT_URL = (import.meta.env.VITE_CHAT_URL || '').replace(/\/+$/, '')
 const MAX_ROUNDS = 6
@@ -130,7 +131,8 @@ async function readStep(res, onText) {
 /**
  * Ask the AI astrologer about a profile's chart. `messages` is the text conversation
  * ([{ role: 'user' | 'assistant', content }], ending with the new question). Events passed to
- * onEvent: { type: 'text', text } | { type: 'tool', name } | { type: 'done' }; failures throw ApiError
+ * onEvent: { type: 'text', text } | { type: 'tool', name } | { type: 'reset' } (discard the draft: a corrected
+ * answer follows) | { type: 'done', factcheck: { issues, corrected } }; failures throw ApiError
  * with a short code (busy, daily_limit, unavailable, failed, too_many_steps, not_configured).
  */
 export async function askAstrologer({ profile, messages, lang, signal, onEvent }) {
@@ -140,20 +142,36 @@ export async function askAstrologer({ profile, messages, lang, signal, onEvent }
   const today = DateTime.now().setZone(birth.tz).toISODate()
 
   const convo = messages.map(m => ({ role: m.role, content: m.content }))
+  const saved = readProfiles().filter(p => !samePerson(p, profile))
+  const savedLine = saved.length
+    ? `\n\nPeople saved in the app (for matchmaking, call check_match with just the name): ${saved.map(p => `${p.name} (${p.gender || 'gender not set'})`).join(', ')}`
+    : ''
   convo[0] = {
     role: 'user',
-    content: `Birth chart of the person asking (calculated by the app; today is ${today}):\n${chartSummary(birth, natal, today)}\n\nQuestion: ${convo[0].content}`,
+    content: `Birth chart of the person asking (calculated by the app; today is ${today}):\n${chartSummary(birth, natal, today)}${savedLine}\n\nQuestion: ${convo[0].content}`,
   }
 
   // the newest question gets a short exact fact sheet for its topic, so the model quotes rather than computes
   const last = convo.length - 1
-  const topic = topicOf(messages[messages.length - 1].content)
-  if (topic) {
-    const focus = topicFocus(birth, natal, today, topic)
+  const question = messages[messages.length - 1].content
+  const topic = topicOf(question)
+  // everything the model is given, so its final answer can be checked against it
+  const context = [convo[0].content]
+  // a life area gets its own sheet (with its periods); a question only about the dasha gets the dasha sheet
+  const dasha = !topic && isDashaQuestion(question)
+  // the extra sheets help the answer, but a problem preparing one must never stop the question being answered
+  const safely = (what, fn, fallback) => { try { return fn() } catch (err) { console.warn(`${what} skipped:`, err); return fallback } }
+  const focus = (topic || dasha) && safely('focus sheet', () => (topic ? topicFocus(birth, natal, today, topic) : dashaFocus(birth, natal, today)), null)
+  if (focus?.length) {
     convo[last] = { ...convo[last], content: `${convo[last].content}\n\n${focus.join('\n')}` }
+    context.push(focus.join('\n'))
+  } else if (!/sade|sati|shani|saturn|jupiter|guru|rahu|ketu|transit|panchang|muhurt|ಸಾಡೇ|ಶನಿ|ಗುರು|ರಾಹು|ಕೇತು|ಗೋಚಾರ|ಪಂಚಾಂಗ|ಮುಹೂರ್ತ/i.test(question)) {
+    // a general question (not about one planet or transit either): overview, then ask which area
+    convo[last] = { ...convo[last], content: `${convo[last].content}\n\n[No specific area of life is named: give a short overview from the analysis and the coming periods, then end by asking which area — career, marriage, money, health, studies — they would like to look at in detail.]` }
   }
 
   let wroteText = false
+  let correction = null // the issues found in the first draft, once a correction has been asked for
   for (let round = 0; round < MAX_ROUNDS; round++) {
     let res
     try {
@@ -180,7 +198,17 @@ export async function askAstrologer({ profile, messages, lang, signal, onEvent }
       onEvent({ type: 'text', text: piece })
     })
     if (!calls.length) {
-      onEvent({ type: 'done' })
+      // fact check: claims about lordships, placements and dates must match what the app calculated
+      const issues = safely('fact check', () => checkAnswer(text, buildFacts(birth, natal, context)), [])
+      if (issues.length && !correction) {
+        correction = issues
+        onEvent({ type: 'reset' })
+        onEvent({ type: 'tool', name: 'fact_check' })
+        wroteText = false
+        convo.push({ role: 'assistant', content: text }, { role: 'user', content: correctionRequest(issues) })
+        continue
+      }
+      onEvent({ type: 'done', factcheck: { issues: correction || issues, remaining: correction ? issues : [], corrected: !!correction } })
       return
     }
 
@@ -192,6 +220,7 @@ export async function askAstrologer({ profile, messages, lang, signal, onEvent }
         ? await checkMatch(call.function.arguments, profile, natal, signal)
         : runTool(call.function.name, call.function.arguments, birth, natal)
       convo.push({ role: 'tool', tool_call_id: call.id, content })
+      context.push(content)
     }
   }
   throw new ApiError('too_many_steps')

@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { DateTime } from 'luxon'
 import { useLanguage } from '../contexts/LanguageContext'
-import { askAstrologer } from '../lib/astrologer'
+import { ask, chatKey, clearChat, useChat } from '../lib/chats'
 import { getChart } from '../lib/api'
 import { nakName, planetName, rashiName } from '../lib/astro'
 import { fmtLongDate, fmtTime } from '../lib/dates'
@@ -79,14 +79,14 @@ function Shell({ subtitle, actions, follow, children, composer }) {
   )
 }
 
-function Bubble({ from, time, children }) {
+function Bubble({ from, time, ticks, children }) {
   const mine = from === 'me'
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'} animate-rise`}>
       <div className={`relative max-w-[85%] rounded-xl px-3 pb-1.5 pt-2 text-[15px] leading-relaxed text-ink shadow-sm
         ${mine ? 'rounded-tr-none bg-[#D9FDD3]' : 'rounded-tl-none bg-white'}`}>
         {children}
-        {time && <span className="mt-0.5 block text-right text-[10px] text-ink-500">{time}</span>}
+        {time && <span className="mt-0.5 flex items-center justify-end text-[10px] text-ink-500">{time}{ticks}</span>}
       </div>
     </div>
   )
@@ -258,7 +258,7 @@ function Intake() {
   return (
     <Shell subtitle={t('ai_online')} follow={`${log.length}-${step}`} composer={composer}>
       {log.map((m, i) => (
-        <Bubble key={i} from={m.from} time={m.at}><p className="whitespace-pre-line">{wording(m)}</p></Bubble>
+        <Bubble key={i} from={m.from} time={m.at} ticks={m.from === 'me' ? <Ticks status="read" /> : null}><p className="whitespace-pre-line">{wording(m)}</p></Bubble>
       ))}
     </Shell>
   )
@@ -266,84 +266,36 @@ function Intake() {
 
 // ── Chat about one chart ─────────────────────────────────────────────────
 
-// the server accepts a bounded conversation; an odd count keeps the history starting with a question
-const HISTORY_TURNS = 39
 const ERRORS = ['refused', 'busy', 'daily_limit', 'unavailable', 'failed', 'too_long', 'too_many_steps', 'not_configured']
 
-// conversations are kept per chart on this device; also used by the chart page's "Ask AI" link
-const storageKey = p => `km_chat_${p.date}_${p.timeUnknown ? 'x' : p.time}_${(+p.lat).toFixed(4)}_${(+p.lon).toFixed(4)}`
-
-function load(key) {
-  try {
-    const list = JSON.parse(localStorage.getItem(key) || '[]')
-    return Array.isArray(list) ? list : []
-  } catch {
-    return []
-  }
-}
-
-function store(key, messages) {
-  try {
-    if (messages.length) localStorage.setItem(key, JSON.stringify(messages))
-    else localStorage.removeItem(key)
-  } catch { /* storage unavailable — the conversation just won't persist */ }
+/** WhatsApp-style ticks on the person's own messages: ✓ sent, blue ✓✓ read (the answer has started). */
+function Ticks({ status }) {
+  if (status === 'read') return <span className="ml-1 text-[13px] tracking-[-0.35em] text-sky-500" aria-label="read">✓✓</span>
+  if (status === 'sent') return <span className="ml-1 text-[13px] text-ink-300" aria-label="sent">✓</span>
+  return null
 }
 
 function ChartChat({ profile }) {
   const { t, lang } = useLanguage()
-  const key = storageKey(profile)
+  const key = chatKey(profile)
   const [chart, setChart] = useState(null)
-  const [messages, setMessages] = useState(() => load(key))
+  // the conversation lives in lib/chats, so an answer keeps coming even if this screen is closed
+  const { messages, pending } = useChat(key)
   const [draft, setDraft] = useState('')
-  const [pending, setPending] = useState(null) // { text, status } while an answer is coming in
-  const [error, setError] = useState(null)
-  const abortRef = useRef(null)
   const first = profile.name.split(' ')[0]
 
   useEffect(() => { getChart(profile).then(setChart, () => setChart(false)) }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => store(key, messages), [key, messages])
-  useEffect(() => () => abortRef.current?.abort(), [])
 
-  async function send(raw) {
+  function send(raw) {
     const question = raw.trim()
     if (!question || pending) return
-    const history = [...messages, { role: 'user', content: question, time: now() }]
-    setMessages(history)
     setDraft('')
-    setError(null)
-    setPending({ text: '', status: 'thinking' })
-
-    const ctrl = new AbortController()
-    abortRef.current = ctrl
-    let text = ''
-    let failed = null
-    try {
-      await askAstrologer({
-        profile, lang, signal: ctrl.signal,
-        messages: history.slice(-HISTORY_TURNS).map(({ role, content }) => ({ role, content })),
-        onEvent: ev => {
-          if (ev.type === 'text') { text += ev.text; setPending({ text, status: null }) }
-          else if (ev.type === 'tool') setPending({ text, status: ev.name })
-        },
-      })
-    } catch (err) {
-      failed = err.name === 'AbortError' ? 'stopped' : err.message
-    }
-    abortRef.current = null
-    setPending(null)
-
-    if (failed || !text.trim()) {
-      // give the question back so it can be sent again
-      setMessages(history.slice(0, -1))
-      setDraft(question)
-      if (failed !== 'stopped') setError(failed || 'failed')
-      return
-    }
-    setMessages([...history, { role: 'assistant', content: text.trim(), time: now() }])
+    ask(profile, lang, question)
   }
 
   const status = pending?.status && t(pending.status === 'thinking' ? 'ask_thinking' : `ask_tool_${pending.status}`)
   const running = chart && currentDasha(chart.dasha)
+  const failed = messages.at(-1)?.status === 'failed' ? messages.at(-1) : null
 
   const composer = (
     <>
@@ -356,13 +308,12 @@ function ChartChat({ profile }) {
         </div>
       )}
       <form className="flex items-end gap-2" onSubmit={e => { e.preventDefault(); send(draft) }}>
+        {/* the next question can be typed while an answer is coming; it is sent once the answer is done */}
         <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={1} maxLength={4000}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(draft) } }}
-          placeholder={t('ai_type')} aria-label={t('ai_type')} disabled={!!pending}
+          placeholder={t('ai_type')} aria-label={t('ai_type')}
           className="max-h-32 min-h-[3rem] min-w-0 flex-1 resize-none rounded-3xl border-0 bg-white px-4 py-3 text-base shadow-sm outline-none" />
-        {pending
-          ? <button type="button" onClick={() => abortRef.current?.abort()} className="h-12 shrink-0 rounded-full bg-white px-4 text-sm font-semibold text-kumkum shadow">{t('ask_stop')}</button>
-          : <SendButton label={t('ai_send')} disabled={!draft.trim()} />}
+        <SendButton label={t('ai_send')} disabled={!draft.trim() || !!pending} />
       </form>
     </>
   )
@@ -371,7 +322,7 @@ function ChartChat({ profile }) {
     <>
       <Link to={chartPath(profile)} className="rounded-full px-3 py-1.5 text-xs font-semibold text-cream/90 ring-1 ring-white/25 hover:bg-white/10">{t('ai_open_chart')}</Link>
       {messages.length > 0 && !pending && (
-        <button type="button" onClick={() => { setMessages([]); setError(null) }} aria-label={t('ask_clear')}
+        <button type="button" onClick={() => clearChat(profile)} aria-label={t('ask_clear')}
           className="rounded-full p-2 text-lg leading-none hover:bg-white/10">⟲</button>
       )}
     </>
@@ -379,7 +330,7 @@ function ChartChat({ profile }) {
 
   return (
     <Shell subtitle={pending ? t('ai_typing') : t('ai_about', { name: first })} actions={actions} composer={composer}
-      follow={`${messages.length}-${pending?.text.length ?? -1}-${!!error}-${!!chart}`}>
+      follow={`${messages.length}-${pending?.text.length ?? -1}-${!!failed}-${!!chart}`}>
       <Bubble from="bot">
         <p>{t('ai_chart_ready', { name: first })}</p>
         {chart && (
@@ -392,17 +343,18 @@ function ChartChat({ profile }) {
         )}
       </Bubble>
       {messages.map((m, i) => (
-        <Bubble key={i} from={m.role === 'user' ? 'me' : 'bot'} time={m.time}>
+        <Bubble key={i} from={m.role === 'user' ? 'me' : 'bot'} time={m.time} ticks={m.role === 'user' && m.status !== 'failed' ? <Ticks status={m.status || 'read'} /> : null}>
           {m.role === 'user' ? <p className="whitespace-pre-wrap">{m.content}</p> : <Answer text={m.content} />}
         </Bubble>
       ))}
       {pending && (pending.text
         ? <Bubble from="bot"><Answer text={pending.text} />{status && <p className="text-sm text-ink-500 animate-pulse">{status}</p>}</Bubble>
         : <Typing label={status} />)}
-      {error && (
-        <p role="alert" className="mx-auto max-w-xs rounded-lg bg-kumkum-50 px-3 py-2 text-center text-sm text-kumkum">
-          {ERRORS.includes(error) ? t(`ask_err_${error}`) : error}
-        </p>
+      {failed && (
+        <div role="alert" className="mx-auto max-w-xs rounded-lg bg-kumkum-50 px-3 py-2 text-center text-sm text-kumkum">
+          <p>! {ERRORS.includes(failed.error) ? t(`ask_err_${failed.error}`) : t('ask_err_failed')}</p>
+          <button type="button" onClick={() => send(failed.content)} className="mt-1 font-semibold underline">{t('ask_retry')}</button>
+        </div>
       )}
     </Shell>
   )

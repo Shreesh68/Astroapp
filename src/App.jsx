@@ -8,6 +8,7 @@ import MatchResultPage from './pages/MatchResultPage'
 import Panchang from './pages/Panchang'
 import About from './pages/About'
 import AskAI from './pages/AskAI'
+import ReplyToast from './components/ReplyToast'
 import Login from './pages/Login'
 import Account from './pages/Account'
 import Header from './components/Header'
@@ -38,6 +39,7 @@ export default function App() {
     <BrowserRouter>
       <ScrollToTop />
       <BackButton />
+      <ReplyToast />
       <Routes>
         {/* the chat is full-screen, like a messaging app */}
         <Route path="/ask" element={<AskAI />} />
