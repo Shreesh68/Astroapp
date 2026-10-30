@@ -109,7 +109,9 @@ Answer **No** to processed ephemerally only where the data is stored in the acco
 
 ## Status (30 October 2026)
 
-- Done in the Console: privacy policy, sign-in details, ads, advertising ID, government, financial, health, target audience (18+), Data safety, store listing (text, icon, feature graphic, 6 screenshots), category (Lifestyle) and contact email.
-- Closed testing - Alpha: country India, tester list "AIAstrology testers", release 1.0.0 (1) saved but not yet sent for review.
+- Every App content declaration is done. Content rating: "Online content: Yes" (the AI answers), everything else No, giving ESRB Everyone, PEGI 3 and ClassInd All ages.
+- Store listing (en-US), category Lifestyle and contact email are set.
+- Closed testing - Alpha: India, release 1.0.0 (1), and the tester list "AIAstrology testers" with 4 people.
+- **Sent to Google for review on 30 October 2026.**
 - Play app signing SHA-1 `57:3F:DF:…:7B:3C` and SHA-256 `8A:7C:E5:…:3E:D2` are registered in Firebase.
-- Still to do: content rating questionnaire (accept IARC terms), add the other testers, send for review in Publishing overview.
+- Next: add 8 or more testers (12 minimum) and have them opt in through the link on the Testers tab. After 14 days with 12 testers, apply for production on the Dashboard.
