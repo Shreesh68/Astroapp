@@ -2,17 +2,18 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { DateTime } from 'luxon'
 import { useLanguage } from '../contexts/LanguageContext'
-import { ask, chatKey, clearChat, useChat } from '../lib/chats'
+import { ask, chatKey, clearChat, resume, useChat } from '../lib/chats'
 import { reportLink } from '../lib/contact'
 import { getChart } from '../lib/api'
-import { nakName, planetName, rashiName } from '../lib/astro'
-import { fmtLongDate, fmtTime } from '../lib/dates'
+import { NAKSHATRAS, RASHIS, deityName, nakName, pick, planetName, rashiName } from '../lib/astro'
+import { fmtLongDate, fmtMonthYear, fmtTime } from '../lib/dates'
 import { getTimezone } from '../lib/geocode'
 import { saveEdits, saveProfile, useProfiles } from '../lib/profiles'
 import { chartPath, paramsToProfile, profileToParams } from '../lib/share'
 import { currentDasha } from '../components/DashaTimeline'
 import { DateFields, TimeFields } from '../components/DateTimeFields'
 import PlaceSearch from '../components/PlaceSearch'
+import SouthIndianChart from '../components/SouthIndianChart'
 import { Answer } from '../components/ChatText'
 
 /**
@@ -128,8 +129,11 @@ function SendButton({ disabled, label }) {
 
 const EMPTY = { name: '', gender: '', date: '', time: '', timeUnknown: false, place: '', lat: null, lon: null, tz: null }
 
+// Kannada script: someone writing in Kannada gets the chat (summary and answers) in Kannada
+const KANNADA = /[\u0C80-\u0CFF]/
+
 function Intake() {
-  const { t, lang } = useLanguage()
+  const { t, lang, setLang } = useLanguage()
   const navigate = useNavigate()
   const { profiles } = useProfiles()
   const [data, setData] = useState(EMPTY)
@@ -212,7 +216,11 @@ function Intake() {
 
   function submitText(e) {
     e.preventDefault()
-    if (step === 'name' && draft.trim()) { answer({ text: draft.trim() }, { name: draft.trim() }, 'name'); setDraft('') }
+    if (step === 'name' && draft.trim()) {
+      if (lang === 'en' && KANNADA.test(draft)) setLang('kn')
+      answer({ text: draft.trim() }, { name: draft.trim() }, 'name')
+      setDraft('')
+    }
     if (step === 'date') {
       const dt = DateTime.fromISO(date)
       if (!date || !dt.isValid || dt.year < 1800) return add({ from: 'bot', key: 'err_date' })
@@ -277,7 +285,7 @@ function Ticks({ status }) {
 }
 
 function ChartChat({ profile }) {
-  const { t, lang } = useLanguage()
+  const { t, lang, setLang } = useLanguage()
   const key = chatKey(profile)
   const [chart, setChart] = useState(null)
   // the conversation lives in lib/chats, so an answer keeps coming even if this screen is closed
@@ -286,16 +294,20 @@ function ChartChat({ profile }) {
   const first = profile.name.split(' ')[0]
 
   useEffect(() => { getChart(profile).then(setChart, () => setChart(false)) }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
+  // a question left unanswered because Android closed the app is answered now
+  useEffect(() => { resume(profile, lang) }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function send(raw) {
     const question = raw.trim()
     if (!question || pending) return
     setDraft('')
-    ask(profile, lang, question)
+    // a question typed in Kannada is answered in Kannada, and the chat switches with it
+    const replyIn = lang === 'en' && KANNADA.test(question) ? 'kn' : lang
+    if (replyIn !== lang) setLang(replyIn)
+    ask(profile, replyIn, question)
   }
 
   const status = pending?.status && t(pending.status === 'thinking' ? 'ask_thinking' : `ask_tool_${pending.status}`)
-  const running = chart && currentDasha(chart.dasha)
   const failed = messages.at(-1)?.status === 'failed' ? messages.at(-1) : null
 
   const composer = (
@@ -333,15 +345,7 @@ function ChartChat({ profile }) {
     <Shell subtitle={pending ? t('ai_typing') : t('ai_about', { name: first })} actions={actions} composer={composer}
       follow={`${messages.length}-${pending?.text.length ?? -1}-${!!failed}-${!!chart}`}>
       <Bubble from="bot">
-        <p>{t('ai_chart_ready', { name: first })}</p>
-        {chart && (
-          <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-cream px-3 py-2 text-sm">
-            {!profile.timeUnknown && <><dt className="text-ink-500">{t('key_lagna')}</dt><dd className="font-semibold">{rashiName(chart.ascendant.sign_index, lang)}</dd></>}
-            <dt className="text-ink-500">{t('key_moon')}</dt><dd className="font-semibold">{rashiName(chart.planets.moon.sign_index, lang)}</dd>
-            <dt className="text-ink-500">{t('key_nak')}</dt><dd className="font-semibold">{nakName(chart.planets.moon.nakshatra_index, lang)}</dd>
-            {running && <><dt className="text-ink-500">{t('key_dasha')}</dt><dd className="font-semibold">{planetName(running.maha.lord, lang)} / {planetName(running.antar?.lord, lang)}</dd></>}
-          </dl>
-        )}
+        {chart ? <KundliSummary profile={profile} chart={chart} /> : <p>{t('ai_chart_ready', { name: first })}</p>}
       </Bubble>
       {messages.map((m, i) => (
         <Bubble key={i} from={m.role === 'user' ? 'me' : 'bot'} time={m.time} ticks={m.role === 'user' && m.status !== 'failed' ? <Ticks status={m.status || 'read'} /> : null}
@@ -359,5 +363,39 @@ function ChartChat({ profile }) {
         </div>
       )}
     </Shell>
+  )
+}
+
+/**
+ * The first message of a chart's chat: the kundli drawn as a South Indian chart and a short reading of
+ * it — Moon sign and nakshatra, Lagna, the running dasha and Kuja dosha — in the chat's language, before
+ * the person asks their questions.
+ */
+function KundliSummary({ profile, chart }) {
+  const { t, lang } = useLanguage()
+  const first = profile.name.split(' ')[0]
+  const moon = chart.planets.moon
+  const asc = chart.ascendant
+  const nak = NAKSHATRAS[moon.nakshatra_index]
+  const running = currentDasha(chart.dasha)
+  return (
+    <div className="space-y-2">
+      <p>{t('ai_kundli_intro', { name: first })}</p>
+      <div className="rounded-lg bg-cream p-2">
+        <SouthIndianChart ephem={chart} lang={lang} />
+      </div>
+      <p>{t('story_moon', { name: first, rashi: rashiName(moon.sign_index, lang), nak: nakName(moon.nakshatra_index, lang), pada: moon.pada, trait: pick(RASHIS[moon.sign_index].trait, lang) })}</p>
+      <p>{t('story_nak', { nak: nakName(moon.nakshatra_index, lang), symbol: nak.symbol.toLowerCase(), deity: deityName(nak.deity, lang), trait: pick(nak.trait, lang) })}</p>
+      <p>{profile.timeUnknown ? `⚠ ${t('story_lagna_unknown')}` : t('story_lagna', { rashi: rashiName(asc.sign_index, lang), trait: pick(RASHIS[asc.sign_index].trait, lang) })}</p>
+      <dl className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-cream px-3 py-2 text-sm">
+        {!profile.timeUnknown && <><dt className="text-ink-500">{t('key_lagna')}</dt><dd className="font-semibold">{rashiName(asc.sign_index, lang)}</dd></>}
+        <dt className="text-ink-500">{t('key_moon')}</dt><dd className="font-semibold">{rashiName(moon.sign_index, lang)}</dd>
+        <dt className="text-ink-500">{t('key_nak')}</dt><dd className="font-semibold">{nakName(moon.nakshatra_index, lang)} · {t('pada')} {moon.pada}</dd>
+        {running && <><dt className="text-ink-500">{t('key_dasha')}</dt><dd className="font-semibold">{planetName(running.maha.lord, lang)} / {planetName(running.antar?.lord, lang)}
+          {running.antar && <span className="block text-xs font-normal text-ink-500">{t('ai_until', { when: fmtMonthYear(running.antar.end, profile.tz, lang) })}</span>}</dd></>}
+        <dt className="text-ink-500">{t('manglik_title')}</dt><dd className="font-semibold">{t(`kuja_${chart.manglik.strength}`)}</dd>
+      </dl>
+      <p>{t('ai_ask_next', { name: first })}</p>
+    </div>
   )
 }

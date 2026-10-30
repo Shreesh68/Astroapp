@@ -1,6 +1,7 @@
 // AIAstrology chat server (Cloudflare Worker). It holds the astrologer's instructions and relays one
 // conversation step at a time to a Workers AI model, streaming the reply straight back. The app runs
 // every calculation the model asks for on the phone (src/lib/astrologer.js), so this stays tiny.
+import { DurableObject } from 'cloudflare:workers'
 import { DELETE_ACCOUNT, PRIVACY } from './pages.js'
 import { TOOL_SPECS } from '../../src/engine/toolSpecs.js'
 
@@ -106,6 +107,67 @@ function validMessages(messages) {
   return chars <= MAX_CHARS && messages[0].role === 'user'
 }
 
+const streamHeaders = { ...cors, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' }
+const STEP_TTL_MS = 15 * 60 * 1000
+const validStep = id => typeof id === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(id)
+
+/** One streamed model step. */
+function runModel(env, messages) {
+  return env.AI.run(env.MODEL, {
+    messages,
+    tools: TOOL_SPECS,
+    stream: true,
+    // hidden reasoning counts against this cap too, so leave room for long Kannada answers
+    max_completion_tokens: 6000,
+    temperature: 0.3,
+    // thinking first makes answers slower (up to a minute) and uses more of the free allowance
+    chat_template_kwargs: { enable_thinking: env.THINKING === 'on' },
+  })
+}
+
+function aiError(err) {
+  const message = String(err?.message || err)
+  console.error('AI error', message)
+  // Workers AI error 4006: the free daily allowance is used up
+  if (/4006|daily|neurons/i.test(message)) return fail(429, 'daily_limit')
+  return fail(502, 'busy')
+}
+
+/**
+ * One model step that outlives the phone's connection. It streams to the phone as usual and, at the
+ * same time, reads the stream to the end and stores it, so a phone that was put in the background
+ * (Android cuts its network) can fetch the finished step when it comes back. Deleted after STEP_TTL.
+ */
+export class Step extends DurableObject {
+  async fetch(request) {
+    const storage = this.ctx.storage
+    if (request.method === 'GET') {
+      const raw = await storage.get('raw')
+      if (raw != null) return new Response(raw, { headers: streamHeaders })
+      return fail((await storage.get('running')) ? 202 : 404, 'pending')
+    }
+    if ((await storage.get('running')) || (await storage.get('raw')) != null) return fail(409, 'failed')
+    const { messages } = await request.json()
+    let stream
+    try {
+      stream = await runModel(this.env, messages)
+    } catch (err) {
+      return aiError(err)
+    }
+    await storage.put('running', true)
+    await storage.setAlarm(Date.now() + STEP_TTL_MS)
+    const [toPhone, toKeep] = stream.tee()
+    this.ctx.waitUntil(new Response(toKeep).text()
+      .then(raw => storage.put('raw', raw))
+      .catch(() => storage.delete('running')))
+    return new Response(toPhone, { headers: streamHeaders })
+  }
+
+  async alarm() {
+    await this.ctx.storage.deleteAll()
+  }
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: cors })
@@ -113,6 +175,12 @@ export default {
     if (url.pathname === '/') return new Response('ok', { headers: cors })
     const html = { '/privacy': PRIVACY, '/delete-account': DELETE_ACCOUNT }[url.pathname.replace(/\/$/, '')]
     if (html && request.method === 'GET') return new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=3600' } })
+    // a step's answer, kept by its Durable Object: 200 with the whole stream, 202 still writing, 404 unknown
+    if (url.pathname === '/chat/step' && request.method === 'GET') {
+      const id = url.searchParams.get('id')
+      if (!validStep(id)) return fail(404, 'not_found')
+      return env.STEPS.get(env.STEPS.idFromName(id)).fetch('https://step/')
+    }
     if (url.pathname !== '/chat' || request.method !== 'POST') return fail(404, 'not_found')
 
     let body
@@ -128,24 +196,17 @@ export default {
     const fixed = fixedReply(body.messages)
     if (fixed) return streamText(FIXED_REPLIES[fixed][lang])
 
+    const messages = [{ role: 'system', content: `${SYSTEM_PROMPT}\n\n${LANG_NOTE[lang]}` }, ...withReplyLanguage(body.messages, lang)]
+    // with a step id the answer is written by a Durable Object, which finishes it and keeps it for
+    // STEP_TTL even if the phone drops the connection (the app was put in the background)
+    if (validStep(body.step)) {
+      const stub = env.STEPS.get(env.STEPS.idFromName(body.step))
+      return stub.fetch('https://step/', { method: 'POST', body: JSON.stringify({ messages }) })
+    }
     try {
-      const stream = await env.AI.run(env.MODEL, {
-        messages: [{ role: 'system', content: `${SYSTEM_PROMPT}\n\n${LANG_NOTE[lang]}` }, ...withReplyLanguage(body.messages, lang)],
-        tools: TOOL_SPECS,
-        stream: true,
-        // hidden reasoning counts against this cap too, so leave room for long Kannada answers
-        max_completion_tokens: 6000,
-        temperature: 0.3,
-        // thinking first makes answers slower (up to a minute) and uses more of the free allowance
-        chat_template_kwargs: { enable_thinking: env.THINKING === 'on' },
-      })
-      return new Response(stream, { headers: { ...cors, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' } })
+      return new Response(await runModel(env, messages), { headers: streamHeaders })
     } catch (err) {
-      const message = String(err?.message || err)
-      console.error('AI error', message)
-      // Workers AI error 4006: the free daily allowance is used up
-      if (/4006|daily|neurons/i.test(message)) return fail(429, 'daily_limit')
-      return fail(502, 'busy')
+      return aiError(err)
     }
   },
 }

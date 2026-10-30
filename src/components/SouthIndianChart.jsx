@@ -60,9 +60,10 @@ export default function SouthIndianChart({ ephem, lang = 'en', size = 'md', sele
                 ${isSel ? 'bg-turmeric/25 ring-2 ring-inset ring-turmeric-600 z-10' : isLagna ? 'bg-cream-100' : 'bg-white'}
                 ${interactive ? 'cursor-pointer hover:bg-cream focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-kumkum' : ''}`}
             >
-              <span className="flex items-start justify-between gap-1">
-                <span className={`leading-tight font-medium text-turmeric-700 ${lg ? 'text-[10px] sm:text-xs' : 'text-[9px]'}`}>{rashiName(sign, lang)}</span>
-                {isLagna && <span className={`leading-tight font-bold text-kumkum ${lg ? 'text-[10px] sm:text-xs' : 'text-[9px]'}`}>{lagnaLabel}</span>}
+              {/* words never break: on a small chart "Lagna" moves under the sign name instead */}
+              <span className="flex flex-wrap items-start justify-between gap-x-1">
+                <span className={`whitespace-nowrap leading-tight font-medium text-turmeric-700 ${lg ? 'text-[10px] sm:text-xs' : 'text-[9px]'}`}>{rashiName(sign, lang)}</span>
+                {isLagna && <span className={`whitespace-nowrap leading-tight font-bold text-kumkum ${lg ? 'text-[10px] sm:text-xs' : 'text-[9px]'}`}>{lagnaLabel}</span>}
               </span>
               <span className="mt-auto flex flex-wrap gap-x-1.5 gap-y-0.5">
                 {planets.map(p => (

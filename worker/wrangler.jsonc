@@ -13,5 +13,9 @@
   "ratelimits": [
     { "name": "LIMITER", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } }
   ],
+  // each answer step is written by its own Durable Object, so it finishes and waits for a phone that
+  // went to the background (src/index.js, class Step)
+  "durable_objects": { "bindings": [{ "name": "STEPS", "class_name": "Step" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Step"] }],
   "observability": { "enabled": true }
 }

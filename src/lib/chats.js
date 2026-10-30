@@ -1,6 +1,8 @@
 // Conversations with the AI astrologer, kept per chart on this device. A question keeps being answered
 // even if the person leaves the chat screen: the answer is saved into the chat history when it arrives,
-// and an event lets the app show "Jyotishi has answered" wherever the person is.
+// and an event lets the app show "Jyotishi has answered" wherever the person is. If the person leaves the
+// app, the server finishes the answer and the app picks it up on return (astrologer.js, modelStep); if
+// Android closed the app meanwhile, the chat answers the open question when it is opened again (resume).
 import { useEffect, useState } from 'react'
 import { DateTime } from 'luxon'
 import { askAstrologer } from './astrologer'
@@ -62,6 +64,22 @@ export async function ask(profile, lang, question) {
   const asked = { role: 'user', content: question.trim(), time: now(), status: 'sent' }
   const history = [...loadChat(key).filter(m => m.status !== 'failed'), asked]
   saveChat(key, history)
+  return answer(key, profile, lang, history)
+}
+
+/**
+ * Answer a question that was left without one: Android closed the app while it was being answered.
+ * Call when the chat opens; does nothing if the last message already has its answer or failed.
+ */
+export function resume(profile, lang) {
+  const key = chatKey(profile)
+  const history = loadChat(key)
+  const last = history.at(-1)
+  if (running.has(key) || last?.role !== 'user' || last.status === 'failed') return
+  return answer(key, profile, lang, history)
+}
+
+async function answer(key, profile, lang, history) {
   running.set(key, { text: '', status: 'thinking', profile })
   notify(key)
 

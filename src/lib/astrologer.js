@@ -90,8 +90,9 @@ async function readStep(res, onText) {
   const decoder = new TextDecoder()
   let buffer = '', text = ''
   const calls = []
+  let finished = false
   const handle = data => {
-    if (data === '[DONE]') return
+    if (data === '[DONE]') { finished = true; return }
     let chunk
     try { chunk = JSON.parse(data) } catch { return }
     if (chunk.error) throw new ApiError('failed')
@@ -125,7 +126,85 @@ async function readStep(res, onText) {
     }
   }
   if (buffer.trim().startsWith('data:')) handle(buffer.trim().slice(5).trim())
+  // every step ends with [DONE]; a stream that stops before it was cut off on the way
+  if (!finished) throw new ApiError('unavailable')
   return { text, calls: calls.filter(c => c && c.name) }
+}
+
+// ── One model step that survives the app going to the background ──────────
+
+const stepId = () => (crypto.randomUUID?.() || `${Date.now()}${Math.random()}`).replace(/[^A-Za-z0-9]/g, '').slice(0, 32)
+const sleep = (ms, signal) => new Promise((resolve, reject) => {
+  const t = setTimeout(resolve, ms)
+  signal?.addEventListener('abort', () => { clearTimeout(t); reject(new DOMException('aborted', 'AbortError')) }, { once: true })
+})
+/** Resolves once the app is on screen again (straight away if it is). */
+const onScreen = () => new Promise(resolve => {
+  if (typeof document === 'undefined' || document.visibilityState !== 'hidden') return resolve()
+  const seen = () => { if (document.visibilityState !== 'hidden') { document.removeEventListener('visibilitychange', seen); resolve() } }
+  document.addEventListener('visibilitychange', seen)
+})
+
+/** Ask the server for a step it kept: the stream text, 'pending' while it is still being written, or null. */
+async function keptStep(id, signal) {
+  try {
+    const res = await fetch(`${CHAT_URL}/chat/step?id=${id}`, { signal })
+    if (res.status === 200) return await res.text()
+    return res.status === 202 ? 'pending' : null
+  } catch (err) {
+    if (err.name === 'AbortError') throw err
+    return 'pending' // no network yet: try again shortly
+  }
+}
+
+/**
+ * Send one step of the conversation and stream the answer to onText. The server writes each step to
+ * the end and keeps it for a while (worker/src/index.js, Step), so when the connection breaks — Android
+ * cuts the network of an app put in the background — this waits until the app is back on screen and
+ * picks up the finished step, passing on only the text not shown yet. A step the server never received
+ * is sent again once.
+ */
+async function modelStep(payload, signal, onText, retried = false) {
+  const id = stepId()
+  let shown = 0
+  try {
+    let res
+    try {
+      res = await fetch(`${CHAT_URL}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, device: deviceId(), step: id }),
+        signal,
+      })
+    } catch (err) {
+      if (err.name === 'AbortError') throw err
+      throw new ApiError('unavailable')
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => null)
+      throw new ApiError(typeof body?.error === 'string' ? body.error : 'failed')
+    }
+    return await readStep(res, piece => { shown += piece.length; onText(piece) })
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.message !== 'unavailable') throw err
+    await onScreen()
+    for (let tries = 0; tries < 90; tries++) { // up to ~3 minutes for a long answer still being written
+      const kept = await keptStep(id, signal)
+      if (kept === null) break
+      if (kept !== 'pending') {
+        let seen = 0
+        return readStep(new Response(kept), piece => {
+          const skip = Math.min(piece.length, Math.max(0, shown - seen))
+          seen += piece.length
+          if (skip < piece.length) onText(piece.slice(skip))
+        })
+      }
+      await sleep(2000, signal)
+    }
+    // the server never got it (or lost it): ask again, once, if nothing of it is on screen yet
+    if (!retried && shown === 0) return modelStep(payload, signal, onText, true)
+    throw err
+  }
 }
 
 /**
@@ -173,25 +252,8 @@ export async function askAstrologer({ profile, messages, lang, signal, onEvent }
   let wroteText = false
   let correction = null // the issues found in the first draft, once a correction has been asked for
   for (let round = 0; round < MAX_ROUNDS; round++) {
-    let res
-    try {
-      res = await fetch(`${CHAT_URL}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: convo, lang, device: deviceId() }),
-        signal,
-      })
-    } catch (err) {
-      if (err.name === 'AbortError') throw err
-      throw new ApiError('unavailable')
-    }
-    if (!res.ok) {
-      const body = await res.json().catch(() => null)
-      throw new ApiError(typeof body?.error === 'string' ? body.error : 'failed')
-    }
-
     let first = true
-    const { text, calls } = await readStep(res, piece => {
+    const { text, calls } = await modelStep({ messages: convo, lang }, signal, piece => {
       if (first && wroteText) onEvent({ type: 'text', text: '\n\n' })
       first = false
       wroteText = true
