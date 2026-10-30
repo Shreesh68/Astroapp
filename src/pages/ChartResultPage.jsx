@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import { getChart } from '../lib/api'
-import { HOUSES, NAKSHATRAS, PLANETS, PLANET_ORDER, RASHIS, dms, nakName, pick, planetName, rashiName, reasonText } from '../lib/astro'
+import { HOUSES, NAKSHATRAS, PLANETS, PLANET_ORDER, RASHIS, deityName, dms, nakName, pick, planetName, rashiName, reasonText } from '../lib/astro'
 import { fmtLongDate, fmtTime } from '../lib/dates'
 import { saveProfile, useProfiles } from '../lib/profiles'
 import { paramsToProfile, profileToParams } from '../lib/share'
@@ -56,7 +56,7 @@ function ChartView({ profile, chart }) {
         </p>
         <div className="mt-6 space-y-3 text-lg leading-relaxed max-w-3xl">
           <p>{t('story_moon', { name: first, rashi: rashiName(moon.sign_index, lang), nak: nakName(moon.nakshatra_index, lang), pada: moon.pada, trait: pick(RASHIS[moon.sign_index].trait, lang) })}</p>
-          <p className="text-cream/85 print:text-ink">{t('story_nak', { nak: nakName(moon.nakshatra_index, lang), symbol: nak.symbol.toLowerCase(), deity: nak.deity, trait: pick(nak.trait, lang) })}</p>
+          <p className="text-cream/85 print:text-ink">{t('story_nak', { nak: nakName(moon.nakshatra_index, lang), symbol: nak.symbol.toLowerCase(), deity: deityName(nak.deity, lang), trait: pick(nak.trait, lang) })}</p>
           {profile.timeUnknown
             ? <p className="text-base rounded-xl bg-white/10 px-4 py-3">⚠ {t('story_lagna_unknown')}</p>
             : <p className="text-cream/85 print:text-ink">{t('story_lagna', { rashi: rashiName(asc.sign_index, lang), trait: pick(RASHIS[asc.sign_index].trait, lang) })}</p>}
@@ -161,7 +161,7 @@ function HouseDetail({ chart, sign }) {
     <div key={sign} className="animate-rise md:pt-10" aria-live="polite">
       <p className="eyebrow">{t('house_n', { n: house })}{isLagna ? ` · ${t('key_lagna')}` : ''}</p>
       <h3 className="font-display text-2xl font-semibold mt-1">
-        {rashiName(sign, lang)} <span className="text-base font-normal text-ink-500">({RASHIS[sign].west})</span>
+        {rashiName(sign, lang)} {lang !== 'kn' && <span className="text-base font-normal text-ink-500">({RASHIS[sign].west})</span>}
       </h3>
       <p className="mt-2 text-ink-700">{pick(HOUSES[house - 1], lang)}</p>
 

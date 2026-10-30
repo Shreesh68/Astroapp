@@ -14,13 +14,17 @@ export const weekdayOf = (date, lang) => {
   return dt.isValid ? dt.setLocale(locale(lang)).toLocaleString({ weekday: 'long' }) : ''
 }
 
-/** 'HH:MM' → "1:10 am" */
-export const fmtTime = (time, lang) =>
-  DateTime.fromFormat(time, 'HH:mm').setLocale(locale(lang)).toLocaleString(DateTime.TIME_SIMPLE)
+// Kannada names the part of the day before a 12-hour time, as people say it: ಬೆಳಿಗ್ಗೆ 6:12, ಸಂಜೆ 5:53
+const KN_DAY_PART = h => (h < 4 ? 'ರಾತ್ರಿ' : h < 12 ? 'ಬೆಳಿಗ್ಗೆ' : h < 16 ? 'ಮಧ್ಯಾಹ್ನ' : h < 20 ? 'ಸಂಜೆ' : 'ರಾತ್ರಿ')
+const clock = (dt, lang) => (lang === 'kn'
+  ? `${KN_DAY_PART(dt.hour)} ${dt.toFormat('h:mm')}`
+  : dt.setLocale(locale(lang)).toLocaleString(DateTime.TIME_SIMPLE))
+
+/** 'HH:MM' → "1:10 am" (Kannada: "ರಾತ್ರಿ 1:10") */
+export const fmtTime = (time, lang) => clock(DateTime.fromFormat(time, 'HH:mm'), lang)
 
 /** ISO timestamp with offset → local clock time in that offset, e.g. "6:10 am" */
-export const fmtClock = (iso, lang) =>
-  iso ? DateTime.fromISO(iso, { setZone: true }).setLocale(locale(lang)).toLocaleString(DateTime.TIME_SIMPLE) : '—'
+export const fmtClock = (iso, lang) => (iso ? clock(DateTime.fromISO(iso, { setZone: true }), lang) : '—')
 
 /** ISO timestamp → "Mar 2027" in the given zone */
 export const fmtMonthYear = (iso, tz, lang) =>

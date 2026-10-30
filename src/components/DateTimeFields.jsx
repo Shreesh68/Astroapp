@@ -110,8 +110,9 @@ export function TimeFields({ value, onChange, disabled, autoFocus }) {
   }
 
   return (
-    <div className="flex items-end gap-2 sm:gap-3">
-      <div className="w-20">
+    // one row on every phone: the hour and minute boxes give up width first, AM/PM never wraps or stacks
+    <div className="flex items-end gap-1 sm:gap-3">
+      <div className="min-w-[3.25rem] max-w-[5rem] flex-1 basis-0">
         <Segment inputRef={hRef} label={t('f_hour')} placeholder="HH" maxLength={2} value={parts.h}
           disabled={disabled} autoFocus={autoFocus}
           onChange={v => {
@@ -123,21 +124,22 @@ export function TimeFields({ value, onChange, disabled, autoFocus }) {
             if (v.length === 2 || (v.length === 1 && n > 1)) focus(mRef)
           }} />
       </div>
-      <span className="pb-3 text-2xl font-semibold text-ink-300" aria-hidden>:</span>
-      <div className="w-20">
+      <span className="shrink-0 pb-3 text-2xl font-semibold text-ink-300" aria-hidden>:</span>
+      <div className="min-w-[3.25rem] max-w-[5rem] flex-1 basis-0">
         <Segment inputRef={mRef} label={t('f_minute')} placeholder="MM" maxLength={2} value={parts.m}
           disabled={disabled}
           onBackEmpty={() => focus(hRef)}
           onBlur={() => latest.current.m.length === 1 && update({ m: pad(latest.current.m) })}
           onChange={v => update({ m: v })} />
       </div>
-      <div role="group" aria-label="AM / PM" className="flex rounded-xl border border-cream-200 bg-white p-1 gap-1 h-[52px] ml-1">
+      <div role="group" aria-label={`${t('f_am')} / ${t('f_pm')}`} className="flex shrink-0 flex-nowrap rounded-xl border border-cream-200 bg-white p-1 gap-1 h-[52px]">
         {['AM', 'PM'].map(p => (
           <button key={p} type="button" disabled={disabled} aria-pressed={parts.p === p}
             onClick={() => update({ p })}
-            className={`rounded-lg px-3 text-sm font-semibold transition disabled:opacity-40
+            className={`whitespace-nowrap rounded-lg px-2 sm:px-3 text-sm font-semibold transition disabled:opacity-40
               ${parts.p === p ? 'bg-ink text-cream' : 'text-ink-500 hover:bg-cream'}`}>
-            {t(p === 'AM' ? 'f_am' : 'f_pm')}
+            {/* "AM"/"PM", as Android's own Kannada clock writes them; screen readers get the full words */}
+            <span aria-hidden>{p}</span><span className="sr-only">{t(p === 'AM' ? 'f_am' : 'f_pm')}</span>
           </button>
         ))}
       </div>

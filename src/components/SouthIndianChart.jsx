@@ -1,4 +1,5 @@
 import { PLANETS, PLANET_ORDER, rashiName, nakName } from '../lib/astro'
+import { translate } from '../lib/i18n'
 
 // Fixed rashi positions in the South Indian square (Meena top-left, running clockwise)
 const SIGN_CELLS = [
@@ -45,7 +46,7 @@ export default function SouthIndianChart({ ephem, lang = 'en', size = 'md', sele
           const planets = bySign[sign] || []
           const house = ascSign != null ? ((sign - ascSign + 12) % 12) + 1 : null
           const Tag = interactive ? 'button' : 'div'
-          const label = `${rashiName(sign, lang)}${house ? `, house ${house}` : ''}: ${planets.map(p => PLANETS[p.key][lang === 'kn' ? 'kn' : 'en']).join(', ') || '—'}`
+          const label = `${rashiName(sign, lang)}${house ? `, ${translate(lang, 'house_n', { n: house })}` : ''}: ${planets.map(p => PLANETS[p.key][lang === 'kn' ? 'kn' : 'en']).join(', ') || '—'}`
           return (
             <Tag
               key={sign}
@@ -68,7 +69,7 @@ export default function SouthIndianChart({ ephem, lang = 'en', size = 'md', sele
                   <span key={p.key}
                     className={`font-bold leading-tight animate-pop ${lg ? 'text-xs sm:text-sm' : 'text-[11px]'} ${p.key === 'rahu' || p.key === 'ketu' ? 'text-ink-500' : 'text-ink'}`}
                     style={{ animationDelay: `${120 + order++ * 70}ms` }}
-                    title={`${PLANETS[p.key].en} ${p.degree.toFixed(1)}°${p.retrograde && p.key !== 'rahu' && p.key !== 'ketu' ? ' (R)' : ''}`}>
+                    title={`${PLANETS[p.key][lang === 'kn' ? 'kn' : 'en']} ${p.degree.toFixed(1)}°${p.retrograde && p.key !== 'rahu' && p.key !== 'ketu' ? ' (R)' : ''}`}>
                     {PLANETS[p.key].short[lang === 'kn' ? 'kn' : 'en']}
                     {p.retrograde && p.key !== 'rahu' && p.key !== 'ketu' && <sup className="text-kumkum font-semibold">ᴿ</sup>}
                   </span>

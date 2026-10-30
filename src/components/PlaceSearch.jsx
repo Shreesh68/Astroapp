@@ -13,7 +13,8 @@ import { searchNominatim, searchPhoton } from '../lib/places'
  *   onLocationSelect(loc | null)
  *   autoFocus
  */
-export default function PlaceSearch({ value = null, onLocationSelect, autoFocus = false }) {
+// dropUp: the suggestions open above the box, for a search box at the bottom of the screen (the AI chat)
+export default function PlaceSearch({ value = null, onLocationSelect, autoFocus = false, dropUp = false }) {
   const { t } = useLanguage()
   const [query, setQuery] = useState(value?.name || '')
   const [suggestions, setSuggestions] = useState([])
@@ -120,7 +121,9 @@ export default function PlaceSearch({ value = null, onLocationSelect, autoFocus 
       </div>
 
       {open && searched && (
-        <ul id={listId} role="listbox" className="absolute z-50 w-full bg-white border border-cream-200 rounded-xl shadow-lg max-h-64 overflow-auto mt-1 animate-rise">
+        <ul id={listId} role="listbox"
+          className={`absolute z-50 w-full bg-white border border-cream-200 rounded-xl shadow-lg overflow-auto animate-rise
+            ${dropUp ? 'bottom-full mb-1 max-h-[min(16rem,45dvh)]' : 'mt-1 max-h-64'}`}>
           {suggestions.length === 0 && <li className="px-4 py-3 text-sm text-ink-500">{t('place_none')}</li>}
           {suggestions.map((item, i) => {
             const parts = item.display_name.split(', ')

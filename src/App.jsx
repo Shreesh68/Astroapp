@@ -27,6 +27,36 @@ function BackButton() {
   return null
 }
 
+// While the on-screen keyboard is up, the page is much shorter: the bottom tab bar and footer are hidden
+// (index.css, .kb-open) so the field being typed in and the card around it get the room, and the focused
+// field is brought back into view instead of the page jumping.
+function KeyboardWatcher() {
+  useEffect(() => {
+    const vv = window.visualViewport
+    let tallest = window.innerHeight
+    const typing = () => document.activeElement?.matches?.('input:not([type=checkbox]):not([type=radio]), textarea')
+    const update = () => {
+      const h = vv ? vv.height : window.innerHeight
+      if (!typing()) tallest = Math.max(tallest, h)
+      const open = typing() && h < tallest - 120
+      if (open !== document.documentElement.classList.contains('kb-open')) {
+        document.documentElement.classList.toggle('kb-open', open)
+        if (open) setTimeout(() => document.activeElement?.scrollIntoView?.({ block: 'center', behavior: 'smooth' }), 50)
+      }
+    }
+    const later = () => setTimeout(update, 100)
+    ;(vv || window).addEventListener('resize', update)
+    document.addEventListener('focusin', update)
+    document.addEventListener('focusout', later)
+    return () => {
+      (vv || window).removeEventListener('resize', update)
+      document.removeEventListener('focusin', update)
+      document.removeEventListener('focusout', later)
+    }
+  }, [])
+  return null
+}
+
 export default function App() {
   useEffect(() => {
     // closed <details> sections would be missing from the printed report
@@ -39,6 +69,7 @@ export default function App() {
     <BrowserRouter>
       <ScrollToTop />
       <BackButton />
+      <KeyboardWatcher />
       <ReplyToast />
       <Routes>
         {/* the chat is full-screen, like a messaging app */}

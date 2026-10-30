@@ -39,7 +39,7 @@ export default function Header() {
           <Link to="/" className="flex items-center gap-2 font-display text-lg font-bold">
             <span className="text-turmeric" aria-hidden>✺</span>{t('brand')}
           </Link>
-          <nav className="hidden md:flex items-center gap-1" aria-label="Main">
+          <nav className="hidden md:flex items-center gap-1" aria-label={t('nav_main')}>
             {[...LINKS, { to: '/about', key: 'nav_about' }].map(l => (
               <NavLink key={l.to} to={l.to} end={l.end}
                 className={({ isActive }) => `rounded-full px-3 py-1.5 text-sm font-medium transition ${isActive ? 'bg-white/15 text-white' : 'text-cream/80 hover:text-white'}`}>
@@ -53,7 +53,7 @@ export default function Header() {
       </header>
 
       {/* Bottom tab bar on phones */}
-      <nav aria-label="Main" className="no-print md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-cream-200"
+      <nav aria-label={t('nav_main')} className="no-print bottom-tabs md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-cream-200"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="grid grid-cols-4">
           {LINKS.map(l => (

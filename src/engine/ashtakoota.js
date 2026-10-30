@@ -126,7 +126,7 @@ export function ashtakoota(groomMoonLon, brideMoonLon) {
   const gn = g.nakshatra_index, bn = b.nakshatra_index
   const gr = g.rashi_index, br = b.rashi_index
   const kootas = []
-  const add = (key, score, max, detail) => kootas.push({ key, score, max, detail })
+  const add = (key, score, max, detail, parts) => kootas.push({ key, score, max, detail, ...(parts && { parts }) })
 
   add('varna', VARNA_OF_RASHI[gr] >= VARNA_OF_RASHI[br] ? 1 : 0, 1, `Groom ${g.varna}, bride ${b.varna}`)
 
@@ -135,7 +135,7 @@ export function ashtakoota(groomMoonLon, brideMoonLon) {
   const tBg = taraFrom(bn, gn) // groom's star counted from bride's
   const tGb = taraFrom(gn, bn)
   const tara = (BAD_TARAS.includes(tBg) ? 0 : 1.5) + (BAD_TARAS.includes(tGb) ? 0 : 1.5)
-  add('tara', tara, 3, `${TARA_NAMES[tBg]} from bride, ${TARA_NAMES[tGb]} from groom`)
+  add('tara', tara, 3, `${TARA_NAMES[tBg]} from bride, ${TARA_NAMES[tGb]} from groom`, { from_bride: TARA_NAMES[tBg], from_groom: TARA_NAMES[tGb] })
 
   add('yoni', YONI_TABLE[YONI_OF_NAKSHATRA[gn]][YONI_OF_NAKSHATRA[bn]], 4, `Groom ${g.yoni}, bride ${b.yoni}`)
 
@@ -147,7 +147,7 @@ export function ashtakoota(groomMoonLon, brideMoonLon) {
   const posGFromB = mod(gr - br, 12) + 1
   const posBFromG = mod(br - gr, 12) + 1
   const bhakootBad = BAD_BHAKOOT.includes(`${posGFromB},${posBFromG}`)
-  add('bhakoot', bhakootBad ? 0 : 7, 7, `Rashis are ${posGFromB}/${posBFromG} from each other`)
+  add('bhakoot', bhakootBad ? 0 : 7, 7, `Rashis are ${posGFromB}/${posBFromG} from each other`, { a: posGFromB, b: posBFromG })
 
   const nadiSame = NADI_OF_NAKSHATRA[gn] === NADI_OF_NAKSHATRA[bn]
   add('nadi', nadiSame ? 0 : 8, 8, `Groom ${g.nadi}, bride ${b.nadi}`)

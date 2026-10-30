@@ -66,3 +66,7 @@ a, button, input, select, textarea, label, summary { touch-action: manipulation;
   main { padding: 0 !important; }
   a { text-decoration: none; color: inherit; }
 }
+
+/* on-screen keyboard open (App.jsx KeyboardWatcher): give the screen to the field being typed in */
+.kb-open .bottom-tabs,
+.kb-open .site-footer { display: none; }

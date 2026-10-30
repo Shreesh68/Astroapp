@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import { getMatch } from '../lib/api'
-import { KOOTAS, VERDICTS, nakName, pick, planetName, rashiName, reasonText } from '../lib/astro'
+import { KOOTAS, VERDICTS, kootaTerm, nakName, pick, planetName, rashiName, reasonText } from '../lib/astro'
 import { chartPath, paramsToProfile } from '../lib/share'
 import { samePerson } from '../lib/profiles'
 import { useAsync } from '../lib/useAsync'
@@ -80,8 +80,10 @@ function MatchView({ groom, bride, data }) {
             const frac = k.score / k.max
             const tone = frac >= 0.75 ? 'bg-leaf' : frac >= 0.4 ? 'bg-turmeric' : 'bg-kumkum'
             const attr = KOOTA_ATTR[k.key]
-            const detail = attr ? `${m.groom[attr]} · ${m.bride[attr]}`
+            const detail = attr ? `${kootaTerm(m.groom[attr], lang)} · ${kootaTerm(m.bride[attr], lang)}`
               : k.key === 'graha_maitri' ? `${planetName(m.groom.rashi_lord, lang)} · ${planetName(m.bride.rashi_lord, lang)}`
+              : k.key === 'tara' && k.parts ? t('tara_detail', { a: kootaTerm(k.parts.from_bride, lang), b: kootaTerm(k.parts.from_groom, lang) })
+              : k.key === 'bhakoot' && k.parts ? t('bhakoot_detail', k.parts)
               : k.detail
             return (
               <article key={k.key} className="card p-4 animate-rise" style={{ animationDelay: `${i * 50}ms` }}>

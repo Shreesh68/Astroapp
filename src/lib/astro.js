@@ -165,3 +165,26 @@ const REASONS = {
   'Shared nakshatra is a permitted one and the padas differ': 'ಒಂದೇ ನಕ್ಷತ್ರ ಅನುಮತಿಸಿದ ನಕ್ಷತ್ರಗಳಲ್ಲಿ ಒಂದು, ಪಾದಗಳು ಬೇರೆ',
 }
 export const reasonText = (reason, lang) => (lang === 'kn' && REASONS[reason]) || reason
+
+// Nakshatra deities, by their English name in NAKSHATRAS
+const DEITY_KN = {
+  'Ashwini Kumaras': 'ಅಶ್ವಿನೀ ಕುಮಾರರು', Yama: 'ಯಮ', Agni: 'ಅಗ್ನಿ', Brahma: 'ಬ್ರಹ್ಮ', Soma: 'ಸೋಮ', Rudra: 'ರುದ್ರ',
+  Aditi: 'ಅದಿತಿ', Brihaspati: 'ಬೃಹಸ್ಪತಿ', Nagas: 'ನಾಗರು', Pitris: 'ಪಿತೃಗಳು', Bhaga: 'ಭಗ', Aryaman: 'ಅರ್ಯಮ',
+  Savitar: 'ಸವಿತೃ', Vishwakarma: 'ವಿಶ್ವಕರ್ಮ', Vayu: 'ವಾಯು', 'Indra–Agni': 'ಇಂದ್ರಾಗ್ನಿ', Mitra: 'ಮಿತ್ರ', Indra: 'ಇಂದ್ರ',
+  Nirriti: 'ನಿರೃತಿ', Apas: 'ಅಪ್ (ಜಲದೇವತೆ)', Vishvadevas: 'ವಿಶ್ವೇದೇವತೆಗಳು', Vishnu: 'ವಿಷ್ಣು', 'Ashta Vasus': 'ಅಷ್ಟವಸುಗಳು',
+  Varuna: 'ವರುಣ', 'Aja Ekapada': 'ಅಜ ಏಕಪಾದ', 'Ahir Budhnya': 'ಅಹಿರ್ಬುಧ್ನ್ಯ', Pushan: 'ಪೂಷನ್',
+}
+export const deityName = (deity, lang) => (lang === 'kn' ? DEITY_KN[deity] || deity : deity)
+
+// Ashtakoota terms (varna, vashya, tara, yoni, gana, nadi) as the engine names them
+const KOOTA_TERM_KN = {
+  Shudra: 'ಶೂದ್ರ', Vaishya: 'ವೈಶ್ಯ', Kshatriya: 'ಕ್ಷತ್ರಿಯ', Brahmin: 'ಬ್ರಾಹ್ಮಣ',
+  Chatushpada: 'ಚತುಷ್ಪಾದ', Manava: 'ಮಾನವ', Jalachara: 'ಜಲಚರ', Vanachara: 'ವನಚರ', Keeta: 'ಕೀಟ',
+  Janma: 'ಜನ್ಮ', Sampat: 'ಸಂಪತ್', Vipat: 'ವಿಪತ್', Kshema: 'ಕ್ಷೇಮ', Pratyari: 'ಪ್ರತ್ಯರಿ', Sadhaka: 'ಸಾಧಕ', Vadha: 'ವಧ',
+  Mitra: 'ಮಿತ್ರ', 'Ati-Mitra': 'ಅತಿಮಿತ್ರ',
+  Horse: 'ಅಶ್ವ', Elephant: 'ಗಜ', Sheep: 'ಮೇಷ (ಕುರಿ)', Serpent: 'ಸರ್ಪ', Dog: 'ಶ್ವಾನ', Cat: 'ಮಾರ್ಜಾಲ', Rat: 'ಮೂಷಕ',
+  Cow: 'ಗೋವು', Buffalo: 'ಮಹಿಷ', Tiger: 'ವ್ಯಾಘ್ರ', Deer: 'ಮೃಗ (ಜಿಂಕೆ)', Monkey: 'ವಾನರ', Mongoose: 'ನಕುಲ (ಮುಂಗುಸಿ)', Lion: 'ಸಿಂಹ',
+  Deva: 'ದೇವ', Manushya: 'ಮನುಷ್ಯ', Rakshasa: 'ರಾಕ್ಷಸ',
+  Adi: 'ಆದಿ', Madhya: 'ಮಧ್ಯ', Antya: 'ಅಂತ್ಯ',
+}
+export const kootaTerm = (term, lang) => (lang === 'kn' ? KOOTA_TERM_KN[term] || term : term)

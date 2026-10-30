@@ -235,7 +235,7 @@ function Intake() {
     composer = <Chips options={[{ label: t('ai_yes'), primary: true, onClick: draw },
       ...['name', 'gender', 'date', 'time', 'place'].map(f => ({ label: `✎ ${t(`ai_f_${f}`)}`, onClick: () => change(f) }))]} />
   } else if (step === 'place') {
-    composer = <div className="pb-1"><PlaceSearch autoFocus onLocationSelect={onPlace} /></div>
+    composer = <div className="pb-1"><PlaceSearch autoFocus dropUp onLocationSelect={onPlace} /></div>
   } else {
     composer = (
       <form onSubmit={submitText} className="flex items-end gap-2">
