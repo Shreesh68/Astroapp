@@ -2,6 +2,11 @@
 // The same address is in the Play Store listing and on the privacy page (worker/src/pages.js).
 export const CONTACT_EMAIL = 'shreesh.hegde00@gmail.com'
 
+// public pages served by the chat server (worker/src/pages.js), also linked from the Play Store listing
+const PAGES = 'https://karnatakamatch-chat.astrology-app.workers.dev'
+export const PRIVACY_URL = `${PAGES}/privacy`
+export const DELETE_ACCOUNT_URL = `${PAGES}/delete-account`
+
 /** A mailto: link that reports one AI answer, with the question and (shortened) answer filled in. */
 export function reportLink(question = '', answer = '') {
   const cut = (s, n) => (s.length > n ? `${s.slice(0, n)}…` : s)

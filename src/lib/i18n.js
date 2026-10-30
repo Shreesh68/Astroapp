@@ -294,6 +294,9 @@ export const STRINGS = {
 
     // about
     about_title: 'About AIAstrology',
+    about_privacy: 'Privacy policy',
+    about_delete: 'Delete your account',
+    about_contact: 'Contact us',
   },
   kn: {
     brand: 'AIAstrology',
@@ -578,6 +581,9 @@ export const STRINGS = {
     ask_note: 'ಉತ್ತರಗಳನ್ನು AI ಈ ಜಾತಕದಿಂದ ರಚಿಸುತ್ತದೆ. ಇವು ಮಾರ್ಗದರ್ಶನ ಮಾತ್ರ, ಖಚಿತ ಭವಿಷ್ಯವಲ್ಲ.',
 
     about_title: 'AIAstrology ಬಗ್ಗೆ',
+    about_privacy: 'ಗೌಪ್ಯತಾ ನೀತಿ',
+    about_delete: 'ಖಾತೆ ಅಳಿಸುವುದು',
+    about_contact: 'ನಮ್ಮನ್ನು ಸಂಪರ್ಕಿಸಿ',
   },
 }
 

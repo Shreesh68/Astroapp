@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import { deleteAccount, logOut, useAccount } from '../lib/account'
+import { PRIVACY_URL } from '../lib/contact'
 import { astrologerAvailable } from '../lib/astrologer'
 import { fmtLongDate } from '../lib/dates'
 import { removeProfile, useProfiles } from '../lib/profiles'
@@ -126,6 +127,7 @@ export default function Account() {
           <div className="flex flex-col items-center gap-1">
             <button onClick={() => setConfirming('logout')} className="btn-ghost text-kumkum">{t('acc_logout')}</button>
             <button onClick={() => setConfirming('delete')} className="text-xs text-ink-500 underline py-2">{t('acc_delete')}</button>
+            <a href={PRIVACY_URL} target="_blank" rel="noreferrer" className="text-xs text-ink-500 underline py-1">{t('about_privacy')}</a>
           </div>
         )}
       </section>

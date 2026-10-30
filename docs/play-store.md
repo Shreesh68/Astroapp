@@ -58,7 +58,7 @@ Astrology is for guidance and interest. AI answers can be wrong and are not medi
 **Category:** Lifestyle. **Tags:** Astrology, Horoscope.
 **Contact email:** shreesh.hegde00@gmail.com.
 
-**Graphics** (in `~/Desktop/AIAstrology-PlayStore/`):
+**Graphics** (in `docs/store/`, also copied to `~/Desktop/AIAstrology-PlayStore/`):
 - App icon: `icon-512.png`
 - Feature graphic: `feature-graphic.png`
 - Phone screenshots: `screenshots-en/`, plus `screenshots-kn/` for a Kannada (kn-IN) listing
@@ -106,3 +106,10 @@ Answer **No** to processed ephemerally only where the data is stored in the acco
    ```
    Do the same for the SHA-256. Until this is done, "Continue with Google" fails in the installed-from-Play app. Everything else works.
 4. After 14 days, apply for production access (Dashboard), answer the short questionnaire about the test, then Production → Create release with the same or a newer bundle.
+
+## Status (30 October 2026)
+
+- Done in the Console: privacy policy, sign-in details, ads, advertising ID, government, financial, health, target audience (18+), Data safety, store listing (text, icon, feature graphic, 6 screenshots), category (Lifestyle) and contact email.
+- Closed testing - Alpha: country India, tester list "AIAstrology testers", release 1.0.0 (1) saved but not yet sent for review.
+- Play app signing SHA-1 `57:3F:DF:…:7B:3C` and SHA-256 `8A:7C:E5:…:3E:D2` are registered in Firebase.
+- Still to do: content rating questionnaire (accept IARC terms), add the other testers, send for review in Publishing overview.

@@ -1,4 +1,5 @@
 import { useLanguage } from '../contexts/LanguageContext'
+import { CONTACT_EMAIL, DELETE_ACCOUNT_URL, PRIVACY_URL } from '../lib/contact'
 
 export default function About(){
   const { t, lang } = useLanguage()
@@ -18,6 +19,11 @@ export default function About(){
           <p className="text-sm text-ink-500">Traditions differ between families and regions — for important decisions, please consult an experienced astrologer.</p>
         </>
       )}
+      <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-turmeric-700">
+        <a href={PRIVACY_URL} target="_blank" rel="noreferrer" className="underline">{t('about_privacy')}</a>
+        <a href={DELETE_ACCOUNT_URL} target="_blank" rel="noreferrer" className="underline">{t('about_delete')}</a>
+        <a href={`mailto:${CONTACT_EMAIL}`} className="underline">{t('about_contact')}</a>
+      </p>
     </div>
   )
 }
