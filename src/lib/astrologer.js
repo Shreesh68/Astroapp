@@ -10,6 +10,7 @@ import { ApiError, toPayload } from './api'
 import { findPlace } from './places'
 import { readProfiles, samePerson } from './profiles'
 import { buildFacts, checkAnswer, correctionRequest, languageIssues } from './factcheck'
+import { lifeFromText, lifeLine, readLife, saveLife } from './life'
 
 const CHAT_URL = (import.meta.env.VITE_CHAT_URL || '').replace(/\/+$/, '')
 const MAX_ROUNDS = 6
@@ -63,7 +64,7 @@ export function chartSummary(birth, chart, today) {
   const maha = periods.find(m => day(m.start) <= today && today < day(m.end))
   if (maha) {
     const antar = maha.antardashas.find(a => day(a.start) <= today && today < day(a.end))
-    lines.push(`Running now: ${title(maha.lord)} mahadasha${antar ? `, ${title(antar.lord)} antardasha until ${day(antar.end)}` : ''}`)
+    lines.push(`Running now: ${title(maha.lord)} mahadasha${antar ? `, ${title(antar.lord)} antardasha since ${day(antar.start)} until ${day(antar.end)}` : ''}`)
     lines.push(`Antardashas of the ${title(maha.lord)} mahadasha: ` + maha.antardashas.map(a => `${title(a.lord)} ${day(a.start)} to ${day(a.end)}`).join('; '))
   }
 
@@ -216,7 +217,10 @@ async function modelStep(payload, signal, onText, retried = false) {
  */
 export async function askAstrologer({ profile, messages, lang, signal, onEvent }) {
   if (!CHAT_URL) throw new ApiError('not_configured')
-  const birth = { ...toPayload(profile), name: profile.name, place: profile.place, gender: profile.gender }
+  // what the person says about their own life ("I'm still single") is kept for every later question
+  const said = lifeFromText(messages[messages.length - 1]?.content)
+  const life = Object.keys(said).length ? saveLife(profile, said) : readLife(profile)
+  const birth = { ...toPayload(profile), name: profile.name, place: profile.place, gender: profile.gender, marital: life.marital }
   const natal = chartFor(birth)
   const today = DateTime.now().setZone(birth.tz).toISODate()
 
@@ -227,7 +231,7 @@ export async function askAstrologer({ profile, messages, lang, signal, onEvent }
     : ''
   convo[0] = {
     role: 'user',
-    content: `Birth chart of the person asking (calculated by the app; today is ${today}):\n${chartSummary(birth, natal, today)}${savedLine}\n\nQuestion: ${convo[0].content}`,
+    content: `Birth chart of the person asking (calculated by the app; today is ${today}):\n${chartSummary(birth, natal, today)}${lifeLine(life) ? `\n${lifeLine(life)}` : ''}${savedLine}\n\nQuestion: ${convo[0].content}`,
   }
 
   // the newest question gets a short exact fact sheet for its topic, so the model quotes rather than computes

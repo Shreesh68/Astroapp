@@ -36,6 +36,12 @@ const TOPICS = {
   spirituality: { house: 9, also: [12, 5], karaka: ['jupiter', 'ketu'] },
 }
 
+/** What a sign is for a planet, by sign alone: any of 'own', 'exalted', 'debilitated' (Mercury in Kanya is both). */
+export function signStatus(name, sign) {
+  if (!(name in EXALT)) return []
+  return [OWN[name].includes(sign) && 'own', EXALT[name] === sign && 'exalted', mod(EXALT[name] + 6, 12) === sign && 'debilitated'].filter(Boolean)
+}
+
 function dignity(name, p) {
   if (name === 'rahu' || name === 'ketu') return null
   const s = p.sign_index
@@ -267,7 +273,7 @@ export function topicFocus(birth, chart, today, topic, years = 3) {
   if (topic === 'marriage') {
     const born = DateTime.fromISO(birth.date), now = DateTime.fromISO(today)
     const age = Math.floor(now.diff(born, 'years').years)
-    lines.push(`Age today: ${age}. Marital status: not known to the app.`)
+    lines.push(`Age today: ${age}. Marital status: ${birth.marital ? `${birth.marital} (told by the person)` : 'not known to the app'}.`)
     if (age < 18) lines.push('Under 18: too early to look at marriage timing.')
     else {
       // from 18 (at most the last 20 years), the windows that have already passed

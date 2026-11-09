@@ -4,6 +4,7 @@ import { DateTime } from 'luxon'
 import { useLanguage } from '../contexts/LanguageContext'
 import { ask, chatKey, clearChat, resume, useChat } from '../lib/chats'
 import { reportLink } from '../lib/contact'
+import { MARITAL, WORK, saveLife, useLife } from '../lib/life'
 import { getChart } from '../lib/api'
 import { NAKSHATRAS, RASHIS, deityName, nakName, pick, planetName, rashiName } from '../lib/astro'
 import { fmtLongDate, fmtMonthYear, fmtTime } from '../lib/dates'
@@ -395,7 +396,39 @@ function KundliSummary({ profile, chart }) {
           {running.antar && <span className="block text-xs font-normal text-ink-500">{t('ai_until', { when: fmtMonthYear(running.antar.end, profile.tz, lang) })}</span>}</dd></>}
         <dt className="text-ink-500">{t('manglik_title')}</dt><dd className="font-semibold">{t(`kuja_${chart.manglik.strength}`)}</dd>
       </dl>
+      <AboutLife profile={profile} />
       <p>{t('ai_ask_next', { name: first })}</p>
+    </div>
+  )
+}
+
+/** Optional one-tap answers about the person's life (married? work?), so answers fit their situation. */
+function AboutLife({ profile }) {
+  const { t } = useLanguage()
+  const life = useLife(profile)
+  const name = profile.name.split(' ')[0]
+  const row = (field, options) => (
+    <div>
+      <p className="mb-1 text-xs text-ink-500">{t(`life_q_${field}`, { name })}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map(o => {
+          const on = life[field] === o
+          return (
+            <button key={o} type="button" aria-pressed={on} onClick={() => saveLife(profile, { [field]: on ? null : o })}
+              className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 transition ${on ? 'bg-ink text-cream ring-ink' : 'bg-white text-ink-700 ring-cream-200'}`}>
+              {on && '✓ '}{t(`life_${field}_${o}`)}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+  return (
+    <div className="space-y-2 rounded-lg border border-cream-200 px-3 py-2">
+      <p className="text-sm font-semibold">{t('life_title', { name })}</p>
+      {row('marital', MARITAL)}
+      {row('work', WORK)}
+      <p className="text-[11px] text-ink-500">{t('life_note')}</p>
     </div>
   )
 }

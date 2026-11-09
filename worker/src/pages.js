@@ -28,7 +28,8 @@ This page explains what information the app uses, where it goes, and how you can
 <ul>
   <li><b>Birth details you enter</b> — name, gender, date and time of birth, and birth place (with its map coordinates).
   Charts, matching and the Panchang are calculated <b>on your phone</b>; these calculations send nothing anywhere.</li>
-  <li><b>Questions you ask the AI astrologer</b>, and the answers.</li>
+  <li><b>Questions you ask the AI astrologer</b>, and the answers, and — only if you give them — whether the person is
+  married and what kind of work they do (one-tap answers in the chat, or what you type), so answers fit their life.</li>
   <li><b>Your Google account's name, email and user ID</b> — only if you choose to log in. Login is optional.</li>
 </ul>
 <p>The app does not use your location, contacts, photos, microphone or advertising ID, shows no ads, and does not sell or share
@@ -41,7 +42,8 @@ your information for advertising.</p>
   Google Firebase (Cloud Firestore, India region) so they are back when you log in on another phone. Only you can read them.
   Login itself is handled by Firebase Authentication.</li>
   <li><b>AI astrologer</b>: when you ask a question, the question, the earlier messages of that chat, and a summary of the
-  chart (name, gender, birth date, time and place, planet positions and dasha periods) are sent over an encrypted connection
+  chart (name, gender, birth date, time and place, planet positions and dasha periods), and the life details above if
+  you gave them, are sent over an encrypted connection
   to our server on Cloudflare, which passes them to an AI model running on Cloudflare Workers AI and returns the answer.
   The server does not store your questions or answers. Cloudflare briefly processes request data (including your IP
   address) to run and protect the service, under its own privacy policy.</li>

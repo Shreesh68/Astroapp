@@ -1,10 +1,13 @@
 // Checks an AI answer against what the app actually calculated, before the person relies on it.
-// Three kinds of claim are checked, in English and Kannada:
+// These claims are checked, in English and Kannada:
 //   lordships  — "your 10th lord, the Moon" / "10ನೇ ಮನೆಯ ಅಧಿಪತಿ ಚಂದ್ರ"
 //   placements — "Saturn in your 7th house" / "ಶನಿ … 7ನೇ ಮನೆಯಲ್ಲಿ" (houses counted from the Moon are skipped)
 //   dates      — "June 2027" / "ಜೂನ್ 2027": each must be within a month of a date the model was given
+//   dignity    — "Venus in its own sign", "exalted Saturn" / "ಶುಕ್ರ … ಸ್ವಕ್ಷೇತ್ರ" (birth chart; transit sentences skipped)
+//   yogas      — "Gajakesari yoga" / "ಗಜಕೇಸರಿ": only yogas the app's analysis found (denials are fine)
 // Anything else in the answer is left alone: only claims the app can verify are checked.
 import { RASHI_LORD } from '../engine/constants'
+import { signStatus } from '../engine/analysis'
 
 const PLANETS = ['sun', 'moon', 'mars', 'mercury', 'jupiter', 'venus', 'saturn', 'rahu', 'ketu']
 const EN_PLANET = '(Sun|Moon|Mars|Mercury|Jupiter|Venus|Saturn|Rahu|Ketu)'
@@ -53,8 +56,33 @@ export function buildFacts(birth, chart, context) {
     const focus = line.match(new RegExp(`^\\s*${EN_PLANET}\\s+(in|aspecting)\\s+your\\s+${ORDINAL}\\s+house(?:\\s+from\\s+your\\s+${ORDINAL})?`, 'i'))
     if (focus) houses[focus[1].toLowerCase()].add(+(focus[2].toLowerCase() === 'in' ? focus[3] : focus[4]))
   }
-  return { lordOf, houses, months: new Set(monthsIn(context.join('\n'))) }
+  // the yogas the analysis found: the indented lines under "Yogas present:"
+  const all = context.join('\n')
+  const block = all.includes('Yogas present:') ? all.split('Yogas present:')[1].split('\n').slice(1).filter((l, i, a) => a.slice(0, i + 1).every(x => /^\s{2}/.test(x))).join('\n') : ''
+  const status = Object.fromEntries(PLANETS.map(p => [p, signStatus(p, chart.planets[p].sign_index)]))
+  return { lordOf, houses, months: new Set(monthsIn(all)), status, yogas: block }
 }
+
+// Named yogas: [name, how the analysis writes it, how an answer may write it]
+const YOGAS = [
+  ['Gajakesari yoga', /gajakesari/i, /gaja\s*-?\s*kesari|ಗಜಕೇಸರಿ/i],
+  ['Budhaditya yoga', /budhaditya/i, /budh(?:a)?\s*-?\s*aditya|ಬುಧಾದಿತ್ಯ/i],
+  ['Ruchaka yoga', /ruchaka/i, /ruchaka\s+yoga|ರುಚಕ\s*ಯೋಗ/i],
+  ['Bhadra yoga', /bhadra yoga/i, /bhadra\s+yoga|ಭದ್ರ\s*ಯೋಗ/i],
+  ['Hamsa yoga', /hamsa/i, /hamsa\s+yoga|ಹಂಸ\s*ಯೋಗ/i],
+  ['Malavya yoga', /malavya/i, /malavya\s+yoga|ಮಾಲವ್ಯ\s*ಯೋಗ/i],
+  ['Shasha yoga', /shasha/i, /(?:shasha|sasa)\s+yoga|ಶಶ\s*ಯೋಗ/i],
+  ['Chandra-Mangala yoga', /chandra-mangala/i, /chandra\s*-?\s*mangala|ಚಂದ್ರ\s*-?\s*ಮಂಗಳ\s*ಯೋಗ/i],
+  ['Kemadruma', /kemadruma/i, /kemadruma|ಕೇಮದ್ರುಮ/i],
+  ['Neecha-bhanga', /neecha-bhanga/i, /neecha\s*-?\s*bhanga|ನೀಚ\s*ಭಂಗ/i],
+  ['Viparita Raja yoga', /viparita raja/i, /vipar[ie]e?ta\s+raja|ವಿಪರೀತ\s*ರಾಜ/i],
+  ['Parivartana yoga', /parivartana/i, /parivartana|ಪರಿವರ್ತನ/i],
+]
+const DENIAL = /\b(?:no|not|isn'?t|doesn'?t|absent|lacks?|without|neither|nor)\b|ಇಲ್ಲ|ಇರುವುದಿಲ್ಲ/i
+const TRANSIT_TALK = /transit|currently moving|will (?:move|enter)|enters|moves into|ಗೋಚಾರ|ಪ್ರವೇಶ/i
+const DIGNITY_WORD = { own: 'its own sign', exalted: 'exalted', debilitated: 'debilitated' }
+const enDignity = w => (/own/i.test(w) ? 'own' : /exalt|uchcha/i.test(w) ? 'exalted' : 'debilitated')
+const knDignity = w => (/ಸ್ವ/.test(w) ? 'own' : /ಉಚ್ಚ/.test(w) ? 'exalted' : 'debilitated')
 
 // "ಹತ್ತನೇ ಮನೆ" and "೧೦ನೇ ಮನೆ" are checked like "10ನೇ ಮನೆ"
 const KN_ORDINALS = ['ಮೊದಲನೇ|ಒಂದನೇ', 'ಎರಡನೇ', 'ಮೂರನೇ', 'ನಾಲ್ಕನೇ', 'ಐದನೇ', 'ಆರನೇ', 'ಏಳನೇ', 'ಎಂಟನೇ', 'ಒಂಬತ್ತನೇ', 'ಹತ್ತನೇ', 'ಹನ್ನೊಂದನೇ', 'ಹನ್ನೆರಡನೇ']
@@ -90,6 +118,28 @@ export function checkAnswer(raw, facts) {
   for (const m of text.matchAll(new RegExp(`${KN_PLANET}(?:(?!${KN_PLANET.slice(1, -1)})[^.\\n]){0,30}?(\\d{1,2})ನೇ\\s*(?:ಮನೆ|ಭಾವ)(?:ಯಲ್ಲಿ|ದಲ್ಲಿ)`, 'g'))) {
     if (/ಚಂದ್ರನಿಂದ|ರಾಶಿಯಿಂದ|ಲಗ್ನದಿಂದ ಅಲ್ಲ/.test(m[0])) continue
     placeClaim(KN_TO[m[1]], m[2], m[0])
+  }
+
+  // dignity, in the birth chart (sentences about transits are left alone: a transiting planet may be anywhere)
+  const dignityClaim = (planet, kind, claim) => {
+    if (planet === 'rahu' || planet === 'ketu') return
+    if (!facts.status[planet].includes(kind)) {
+      const has = facts.status[planet].map(k => DIGNITY_WORD[k]).join(' and ')
+      add('dignity', claim, `in the birth chart ${title(planet)} is not ${DIGNITY_WORD[kind]}${has ? ` (it is ${has})` : ''}`)
+    }
+  }
+  for (const sentence of text.split(/(?<=[.!?\n])/)) {
+    if (TRANSIT_TALK.test(sentence)) continue
+    for (const m of sentence.matchAll(new RegExp(`\\b${EN_PLANET}\\b${notAnotherPlanet}\\b(own sign|own house|exalted|exaltation|debilitated|debilitation)\\b`, 'gi'))) dignityClaim(m[1].toLowerCase(), enDignity(m[2]), m[0])
+    for (const m of sentence.matchAll(new RegExp(`\\b(exalted|debilitated)\\s+${EN_PLANET}\\b`, 'gi'))) dignityClaim(m[2].toLowerCase(), enDignity(m[1]), m[0])
+    for (const m of sentence.matchAll(new RegExp(`${KN_PLANET}(?:(?!${KN_PLANET.slice(1, -1)})[^.\\n]){0,30}?(ಸ್ವಕ್ಷೇತ್ರ|ಸ್ವರಾಶಿ|ಉಚ್ಚ|ನೀಚ)`, 'g'))) dignityClaim(KN_TO[m[1]], knDignity(m[2]), m[0])
+
+    // yogas the analysis did not find
+    if (DENIAL.test(sentence)) continue
+    for (const [name, inAnalysis, said] of YOGAS) {
+      const m = sentence.match(said)
+      if (m && !inAnalysis.test(facts.yogas)) add('yoga', m[0], `the app's analysis does not find ${name} in this chart — mention only the yogas listed under "Yogas present"`)
+    }
   }
 
   // dates: within a month of something the model was given
