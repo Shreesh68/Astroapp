@@ -15,7 +15,7 @@ import { currentDasha } from '../components/DashaTimeline'
 import { DateFields, TimeFields } from '../components/DateTimeFields'
 import PlaceSearch from '../components/PlaceSearch'
 import SouthIndianChart from '../components/SouthIndianChart'
-import { Answer } from '../components/ChatText'
+import { AnswerWithDetails } from '../components/ChatText'
 
 /**
  * "Ask AI": a WhatsApp-style chat with the AI astrologer. Without a person in the URL it first asks for
@@ -351,11 +351,11 @@ function ChartChat({ profile }) {
       {messages.map((m, i) => (
         <Bubble key={i} from={m.role === 'user' ? 'me' : 'bot'} time={m.time} ticks={m.role === 'user' && m.status !== 'failed' ? <Ticks status={m.status || 'read'} /> : null}
           extra={m.role === 'assistant' && <a href={reportLink(messages[i - 1]?.content, m.content)} className="mr-auto underline">⚑ {t('ask_report')}</a>}>
-          {m.role === 'user' ? <p className="whitespace-pre-wrap">{m.content}</p> : <Answer text={m.content} />}
+          {m.role === 'user' ? <p className="whitespace-pre-wrap">{m.content}</p> : <AnswerWithDetails text={m.content} />}
         </Bubble>
       ))}
       {pending && (pending.text
-        ? <Bubble from="bot"><Answer text={pending.text} />{status && <p className="text-sm text-ink-500 animate-pulse">{status}</p>}</Bubble>
+        ? <Bubble from="bot"><AnswerWithDetails text={pending.text} writing detailsLabel={t('ask_details_coming')} />{status && <p className="text-sm text-ink-500 animate-pulse">{status}</p>}</Bubble>
         : <Typing label={status} />)}
       {failed && (
         <div role="alert" className="mx-auto max-w-xs rounded-lg bg-kumkum-50 px-3 py-2 text-center text-sm text-kumkum">

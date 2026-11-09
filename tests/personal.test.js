@@ -55,6 +55,9 @@ describe('the life situation is kept and given to the AI', () => {
     const chart = chartFor(birth)
     expect(topicFocus(birth, chart, '2026-11-09', 'marriage').join('\n')).toContain('Marital status: not known to the app')
     expect(topicFocus({ ...birth, marital: 'single' }, chart, '2026-11-09', 'marriage').join('\n')).toContain('Marital status: single (told by the person)')
+    // past windows ("you may already be married around…") only while the status is unknown
+    expect(topicFocus(birth, chart, '2026-11-09', 'marriage').join('\n')).toContain('Past periods that activated marriage')
+    expect(topicFocus({ ...birth, marital: 'single' }, chart, '2026-11-09', 'marriage').join('\n')).not.toContain('Past periods')
   })
 
   it('the summary says when the running sub-period began, so the answer can tie into it', () => {

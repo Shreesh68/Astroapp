@@ -40,7 +40,11 @@ describe('AI fact sheets give dates a customer can trust', () => {
   const ravi = { name: 'Ravi Kumar', gender: 'male', date: '1990-07-12', time: '08:30', lat: 14.2811, lon: 74.4447, tz: 'Asia/Kolkata', time_known: true }
   const chart = chartFor(ravi)
   const sheet = topic => topicFocus(ravi, chart, '2026-11-09', topic)
-  const doubles = lines => lines.slice(lines.findIndex(l => l.startsWith('Double transit')) + 1).filter(l => l.startsWith('  '))
+  const doubles = lines => {
+    const rest = lines.slice(lines.findIndex(l => l.startsWith('Double transit')) + 1)
+    const end = rest.findIndex(l => !l.startsWith('  '))
+    return end < 0 ? rest : rest.slice(0, end)
+  }
 
   it('no double-transit "window" of a few days (was: 23 Feb 2028 – 28 Feb 2028)', () => {
     const marriage = doubles(sheet('marriage'))

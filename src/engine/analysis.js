@@ -227,6 +227,7 @@ export function topicFocus(birth, chart, today, topic, years = 3) {
   const day = iso => iso.slice(0, 10)
   function windowsBetween(from, to, { extend = false } = {}) {
     const periods = []
+    const spans = [] // the same periods with a weight, for ranking the windows
     for (const m of chart.dasha.periods) {
       if (day(m.end) <= from || day(m.start) > to) continue
       for (const a of m.antardashas) {
@@ -239,6 +240,11 @@ export function topicFocus(birth, chart, today, topic, years = 3) {
         if (supporting.length) why.push(`${title(a.lord)} rules supporting house ${supporting.join('&')}`)
         const a0 = day(a.start) < from ? from : day(a.start), a1 = day(a.end) > to ? to : day(a.end)
         if (why.length) periods.push(`  ${span(a0, a1)}: ${title(m.lord)}–${title(a.lord)} period (${why.join('; ')})`)
+        // how strongly the period switches the area on: its own lord counts most, then an occupant,
+        // the significator and a supporting house; the mahadasha lord alone sets a lower base
+        const weight = Math.min(5, (a.lord === lord ? 3 : m.lord === lord ? 2 : 0) + (P[a.lord].house === t.house ? 2 : 0)
+          + (karakas.includes(a.lord) ? 1 : 0) + (supporting.length ? 1 : 0))
+        if (weight) spans.push({ from: a0, to: a1, weight, label: `${title(m.lord)}–${title(a.lord)}`, why })
       }
     }
     // transits: when Jupiter / Saturn occupy or aspect the main house (from the Lagna). Looking ahead, a stay
@@ -266,7 +272,57 @@ export function topicFocus(birth, chart, today, topic, years = 3) {
       // overlaps of under a month (one planet only grazing the house) are not counted as double transit
       if (a < b && a < to && days(a, b) >= 30) doubles.push(`  ${span(a, b)} (dasha: ${periodsIn(a, b).join(', then ')})`)
     }
-    return { periods, transits: [...show('jupiter', jup), ...show('saturn', sat)], doubles }
+    return { periods, transits: [...show('jupiter', jup), ...show('saturn', sat)], doubles, best: extend ? rank(spans, jup, sat, from, to) : [] }
+  }
+
+  /**
+   * The app's own ranking of when the area is most likely to move, so an answer leads with the
+   * strongest time instead of a list: each month scores its running period's weight, plus Jupiter (2)
+   * and Saturn (1.5) on the house, plus 1.5 when both are (double transit). Months scoring 4 or more
+   * with at least one of them on the house form windows; the three best are returned, strongest first.
+   */
+  function rank(spans, jup, sat, from, to) {
+    const on = (list, d) => list.find(x => x.hits && x.from <= d && d < x.to)
+    const months = []
+    for (let m = DateTime.fromISO(from).startOf('month'); m.toISODate() < to; m = m.plus({ months: 1 })) {
+      const d = m.plus({ days: 14 }).toISODate()
+      if (d < from) continue
+      const period = spans.find(x => x.from <= d && d < x.to)
+      const j = on(jup, d), s = on(sat, d)
+      months.push({ d, period, j, s })
+    }
+    // both on the house counts as double transit only for two months running or more (not a brief overlap)
+    months.forEach((x, i) => { x.both = !!(x.j && x.s && ((months[i - 1]?.j && months[i - 1]?.s) || (months[i + 1]?.j && months[i + 1]?.s))) })
+    for (const x of months) {
+      x.score = (x.period?.weight || 0) + (x.j ? 2 : 0) + (x.s ? 1.5 : 0) + (x.both ? 1.5 : 0)
+      x.ok = x.score >= 4 && !!(x.j || x.s)
+    }
+    const windows = []
+    for (const x of months) {
+      const last = windows.at(-1)
+      if (!x.ok) continue
+      if (last && last.months.at(-1) === months[months.indexOf(x) - 1]) last.months.push(x)
+      else windows.push({ months: [x] })
+    }
+    const strength = n => (n >= 7 ? 'strong' : n >= 5.5 ? 'good' : 'moderate')
+    return windows.map(w => {
+      const first = w.months[0].d, last = w.months.at(-1).d
+      const a = DateTime.fromISO(first).startOf('month').toISODate(), b = DateTime.fromISO(last).endOf('month').toISODate()
+      const score = Math.max(...w.months.map(x => x.score))
+      const labels = [...new Set(w.months.filter(x => x.period).map(x => x.period.label))]
+      const reasons = [...new Set(w.months.filter(x => x.period).flatMap(x => x.period.why))]
+      // what the sky does, month by month: the first planet on the house, and when the other joins
+      const fromMonth = pick => fmtMonth(w.months.find(pick).d)
+      const both = w.months.filter(x => x.both), j = w.months.some(x => x.j), s = w.months.some(x => x.s)
+      const house = `your ${ord(t.house)} house`
+      const sky = both.length === w.months.length ? `Jupiter and Saturn both on ${house} (double transit)`
+        : both.length ? `${w.months[0].j ? 'Jupiter' : 'Saturn'} on ${house}, both together (double transit) from ${fromMonth(x => x.both)}`
+          : j && s ? `Jupiter on ${house}, Saturn on it from ${fromMonth(x => x.s)}`
+            : j ? `Jupiter on ${house}` : `Saturn on ${house}`
+      const dasha = labels.length ? `${labels.join(', then ')} period${reasons.length ? ` (${reasons.join('; ')})` : ''}` : ''
+      const when = fmtMonth(a) === fmtMonth(b) ? fmtMonth(a) : `${fmtMonth(a)} – ${fmtMonth(b)}`
+      return { a, b, score, text: `${when} (${strength(score)}): ${[dasha, sky].filter(Boolean).join(' + ')}` }
+    }).sort((x, y) => y.score - x.score || (x.a < y.a ? -1 : 1)).slice(0, 3)
   }
 
   // marriage: the person may already be married — give their age and the windows that have passed
@@ -275,7 +331,8 @@ export function topicFocus(birth, chart, today, topic, years = 3) {
     const age = Math.floor(now.diff(born, 'years').years)
     lines.push(`Age today: ${age}. Marital status: ${birth.marital ? `${birth.marital} (told by the person)` : 'not known to the app'}.`)
     if (age < 18) lines.push('Under 18: too early to look at marriage timing.')
-    else {
+    // the windows that have passed matter only while we do not know whether the person is married
+    else if (!birth.marital) {
       // from 18 (at most the last 20 years), the windows that have already passed
       const from = DateTime.max(born.plus({ years: 18 }), now.minus({ years: 20 })).toISODate()
       const past = windowsBetween(from, today)
@@ -288,6 +345,10 @@ export function topicFocus(birth, chart, today, topic, years = 3) {
   lines.push(next.periods.length ? 'Periods that activate it:' : 'Periods that activate it: none strongly in this span.', ...next.periods)
   lines.push(next.transits.length ? 'Transits touching it:' : 'Transits touching it: neither Jupiter nor Saturn in this span.', ...next.transits)
   lines.push(next.doubles.length ? 'Double transit (Jupiter and Saturn both on it — traditionally the strongest windows):' : 'Double transit: none in this span.', ...next.doubles)
+  lines.push(next.best.length
+    ? 'BEST WINDOWS — ranked by the app from the dasha and Jupiter/Saturn together; lead your answer with #1 and its strength:'
+    : 'BEST WINDOWS: none stand out in the next three years — say so plainly rather than stretching a weak period.',
+  ...next.best.map((w, i) => `  ${i + 1}. ${w.text}`))
   return lines
 }
 
