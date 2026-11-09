@@ -9,7 +9,7 @@ import { analyseChart, dashaFocus, isDashaQuestion, topicFocus, topicOf } from '
 import { ApiError, toPayload } from './api'
 import { findPlace } from './places'
 import { readProfiles, samePerson } from './profiles'
-import { buildFacts, checkAnswer, correctionRequest } from './factcheck'
+import { buildFacts, checkAnswer, correctionRequest, languageIssues } from './factcheck'
 
 const CHAT_URL = (import.meta.env.VITE_CHAT_URL || '').replace(/\/+$/, '')
 const MAX_ROUNDS = 6
@@ -261,7 +261,11 @@ export async function askAstrologer({ profile, messages, lang, signal, onEvent }
     })
     if (!calls.length) {
       // fact check: claims about lordships, placements and dates must match what the app calculated
-      const issues = safely('fact check', () => checkAnswer(text, buildFacts(birth, natal, context)), [])
+      const issues = safely('fact check', () => [
+        ...checkAnswer(text, buildFacts(birth, natal, context)),
+        // a Kannada answer stays in Kannada; the names of people and places are fine
+        ...(lang === 'kn' ? languageIssues(text, [profile.name, profile.place, ...saved.map(p => p.name)]) : []),
+      ], [])
       if (issues.length && !correction) {
         correction = issues
         onEvent({ type: 'reset' })

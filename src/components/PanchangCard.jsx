@@ -187,6 +187,14 @@ export default function PanchangCard({ data, compact = false }) {
         </p>
       </div>
 
+      {data.festivals?.length > 0 && (
+        <ul className="mb-4 flex flex-wrap gap-2" aria-label={t('p_festivals')}>
+          {data.festivals.map(f => (
+            <li key={f} className="rounded-full bg-turmeric/15 px-3 py-1 text-sm font-semibold text-turmeric-700 ring-1 ring-turmeric/30">🪔 {t(`fest_${f}`)}</li>
+          ))}
+        </ul>
+      )}
+
       <dl className="mb-4 flex flex-wrap gap-x-5 gap-y-2 rounded-xl border border-cream-200 px-4 py-3 text-sm">
         {year.map(y => (
           <div key={y.label} className="flex items-baseline gap-1.5">

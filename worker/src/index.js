@@ -31,7 +31,7 @@ How to answer:
 
 const LANG_NOTE = {
   en: 'Reply in English. Section headings: "Why — in your chart", "When", "Suggestion".',
-  kn: 'Reply in Kannada, written in Kannada script, using the Kannada names of rashis, nakshatras and grahas (ಮೇಷ, ಅಶ್ವಿನಿ, ಶನಿ…). Do not add English words or translations in brackets; use an English word only for a name or a term with no Kannada equivalent. Section headings: "ಏಕೆ — ನಿಮ್ಮ ಜಾತಕದಲ್ಲಿ", "ಯಾವಾಗ", "ಸಲಹೆ". Keep dates and numbers clear.',
+  kn: 'Reply in Kannada, written in Kannada script, using the Kannada names of rashis, nakshatras and grahas (ಮೇಷ, ಅಶ್ವಿನಿ, ಶನಿ…). Do not add English words or translations in brackets, and do not copy English terms from the fact sheets: write double transit as ಗುರು–ಶನಿ ದ್ವಿಗೋಚಾರ, transit ಗೋಚಾರ, significator ಕಾರಕ, lord ಅಧಿಪತಿ, retrograde ವಕ್ರ, aspect ದೃಷ್ಟಿ, own sign ಸ್ವಕ್ಷೇತ್ರ, exalted ಉಚ್ಚ, debilitated ನೀಚ, Sade Sati ಸಾಡೇಸಾತಿ. Use English only for the name of a person or a place. Section headings: "ಏಕೆ — ನಿಮ್ಮ ಜಾತಕದಲ್ಲಿ", "ಯಾವಾಗ", "ಸಲಹೆ". Keep dates and numbers clear.',
 }
 // attached to the newest question itself, so it wins over earlier turns or a question typed in the other language
 const REPLY_LANGUAGE = {

@@ -26,10 +26,22 @@ export default function Home(){
         <h1 className="mt-3 font-display text-4xl sm:text-5xl font-bold leading-tight max-w-2xl">{t('home_title')}</h1>
         <p className="mt-4 max-w-xl text-cream/80 text-lg">{t('home_sub')}</p>
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link to="/birth-chart" className="btn-gold">{t('home_cta_chart')} →</Link>
+          {astrologerAvailable && <Link to="/ask" className="btn-gold">✺ {t('home_cta_ai')} →</Link>}
+          <Link to="/birth-chart" className={astrologerAvailable ? 'btn border border-white/30 text-cream hover:bg-white/10' : 'btn-gold'}>{t('home_cta_chart')}{astrologerAvailable ? '' : ' →'}</Link>
           <Link to="/matchmaking" className="btn border border-white/30 text-cream hover:bg-white/10">{t('home_cta_match')}</Link>
         </div>
       </section>
+
+      {astrologerAvailable && (
+        <Link to="/ask" className="card group flex items-center gap-4 px-5 py-4 animate-rise [animation-delay:40ms] hover:border-turmeric transition">
+          <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-ink text-2xl text-turmeric">✺</span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-display text-lg font-semibold">{t('ai_cta_title')}</span>
+            <span className="block text-sm text-ink-500">{t('ai_cta_sub')}</span>
+          </span>
+          <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-kumkum text-xl text-white transition group-hover:translate-x-1">→</span>
+        </Link>
+      )}
 
       {accountsAvailable && ready && (user && self ? (
         <Link to={chartPath(self)} className="card flex items-center gap-4 px-5 py-4 animate-rise hover:border-turmeric transition">
@@ -52,16 +64,6 @@ export default function Home(){
         </Link>
       ))}
 
-      {astrologerAvailable && (
-        <Link to="/ask" className="card group flex items-center gap-4 px-5 py-4 animate-rise [animation-delay:40ms] hover:border-turmeric transition">
-          <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-ink text-2xl text-turmeric">✺</span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-display text-lg font-semibold">{t('ai_cta_title')}</span>
-            <span className="block text-sm text-ink-500">{t('ai_cta_sub')}</span>
-          </span>
-          <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-kumkum text-xl text-white transition group-hover:translate-x-1">→</span>
-        </Link>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <section className="card card-pad lg:col-span-3 animate-rise [animation-delay:80ms]">

@@ -47,7 +47,9 @@ function MatchView({ groom, bride, data }) {
         </div>
         {m.ages && (() => {
           const mo = Math.abs(m.ages.groom_older_months)
-          const gap = mo >= 12 ? t('age_years', { n: Math.floor(mo / 12) }) : t('age_months', { n: mo })
+          // years and months, so the gap agrees with the two ages shown ("36 · 33 · 2 yr 7 mo older")
+          const y = Math.floor(mo / 12), rest = mo % 12
+          const gap = y && rest ? t('age_years_months', { y, m: rest }) : y ? t('age_years', { n: y }) : t('age_months', { n: mo })
           return (
             <p className={`-mt-2 mb-5 text-sm ${m.ages.bride_older ? 'text-turmeric-700' : 'text-ink-500'}`}>
               {t('age_line', { groom: m.ages.groom, bride: m.ages.bride })} · {t(mo === 0 ? 'age_same' : m.ages.bride_older ? 'age_bride_older' : 'age_groom_older', { gap })}

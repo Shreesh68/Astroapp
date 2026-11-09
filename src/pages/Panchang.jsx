@@ -42,7 +42,7 @@ export default function Panchang() {
           <div className="text-center">
             <p className="font-semibold">{fmtLongDate(date, lang)}</p>
             {date !== today
-              ? <button onClick={() => setDate(today)} className="text-xs font-semibold text-turmeric-700 hover:underline">{t('p_today')}</button>
+              ? <button onClick={() => setDate(today)} className="text-xs font-semibold text-turmeric-700 hover:underline">↺ {t('p_back_today')}</button>
               : <span className="text-xs text-ink-500">{t('p_today')}</span>}
           </div>
           <button onClick={() => setDate(d => shiftDate(d, 1))} className="btn-ghost px-3" aria-label={t('p_next')}>→</button>

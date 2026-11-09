@@ -219,7 +219,7 @@ export function topicFocus(birth, chart, today, topic, years = 3) {
 
   // what switches the area on between two dates: dasha periods, Jupiter/Saturn on the house, and both at once
   const day = iso => iso.slice(0, 10)
-  function windowsBetween(from, to) {
+  function windowsBetween(from, to, { extend = false } = {}) {
     const periods = []
     for (const m of chart.dasha.periods) {
       if (day(m.end) <= from || day(m.start) > to) continue
@@ -235,19 +235,30 @@ export function topicFocus(birth, chart, today, topic, years = 3) {
         if (why.length) periods.push(`  ${span(a0, a1)}: ${title(m.lord)}–${title(a.lord)} period (${why.join('; ')})`)
       }
     }
-    // transits: when Jupiter / Saturn occupy or aspect the main house (from the Lagna)
+    // transits: when Jupiter / Saturn occupy or aspect the main house (from the Lagna). Looking ahead, a stay
+    // that runs past the end of the span is followed to its real end, so its dates are not cut at the horizon
+    const lookTo = extend ? DateTime.fromISO(to).plus({ months: 30 }).toISODate() : to
     const influence = planet => {
-      const res = signChanges(birth, chart, { planet, start_date: from, end_date: to })
+      const res = signChanges(birth, chart, { planet, start_date: from, end_date: lookTo })
       const stays = [{ sign: RASHI.indexOf(res.sign_on_start_date), from }, ...res.changes.map(c => ({ sign: RASHI.indexOf(c.to), from: c.date }))]
-      return stays.map((x, i) => ({ ...x, to: stays[i + 1]?.from || to, house: houseOf(x.sign) }))
+      return stays.map((x, i) => ({ ...x, to: stays[i + 1]?.from || lookTo, open: !stays[i + 1], house: houseOf(x.sign) }))
+        .filter(x => x.from < to)
         .map(x => ({ ...x, hits: x.house === t.house ? `in your ${ord(t.house)} house` : aspectedHouses(planet, x.house).includes(t.house) ? `aspecting your ${ord(t.house)} house from your ${ord(x.house)}` : null }))
     }
+    const days = (a, b) => DateTime.fromISO(b).diff(DateTime.fromISO(a), 'days').days
+    const until = x => (x.open && extend ? `${fmtMonth(x.from)} onwards` : span(x.from, x.to))
     const jup = influence('jupiter'), sat = influence('saturn')
-    const show = (planet, list) => list.filter(x => x.hits).map(x => `  ${title(planet)} ${x.hits} (${RASHI[x.sign]}): ${span(x.from, x.to)}`)
+    // a stay of a few weeks is a retrograde touch, weaker than a full stay
+    const show = (planet, list) => list.filter(x => x.hits).map(x => `  ${title(planet)} ${x.hits} (${RASHI[x.sign]}): ${until(x)}${days(x.from, x.to) < 45 && !x.open ? ' (brief retrograde touch)' : ''}`)
+    // the dasha periods a window falls in, so its dates are never paired with the wrong period
+    const periodsIn = (a, b) => chart.dasha.periods.flatMap(m => m.antardashas.map(x => ({ m, x })))
+      .filter(({ x }) => day(x.start) < b && day(x.end) > a)
+      .map(({ m, x }) => `${title(m.lord)}–${title(x.lord)}${day(x.start) > a ? ` from ${fmtMonth(day(x.start))}` : ''}`)
     const doubles = []
     for (const j of jup.filter(x => x.hits)) for (const x of sat.filter(y => y.hits)) {
       const a = j.from > x.from ? j.from : x.from, b = j.to < x.to ? j.to : x.to
-      if (a < b) doubles.push(`  ${span(a, b)}`)
+      // overlaps of under a month (one planet only grazing the house) are not counted as double transit
+      if (a < b && a < to && days(a, b) >= 30) doubles.push(`  ${span(a, b)} (dasha: ${periodsIn(a, b).join(', then ')})`)
     }
     return { periods, transits: [...show('jupiter', jup), ...show('saturn', sat)], doubles }
   }
@@ -267,7 +278,7 @@ export function topicFocus(birth, chart, today, topic, years = 3) {
     }
   }
 
-  const next = windowsBetween(today, until)
+  const next = windowsBetween(today, until, { extend: true })
   lines.push(next.periods.length ? 'Periods that activate it:' : 'Periods that activate it: none strongly in this span.', ...next.periods)
   lines.push(next.transits.length ? 'Transits touching it:' : 'Transits touching it: neither Jupiter nor Saturn in this span.', ...next.transits)
   lines.push(next.doubles.length ? 'Double transit (Jupiter and Saturn both on it — traditionally the strongest windows):' : 'Double transit: none in this span.', ...next.doubles)

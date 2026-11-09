@@ -100,8 +100,28 @@ export function checkAnswer(raw, facts) {
   return issues
 }
 
+// Terms the app's fact sheets give in English, as a Kannada answer should say them
+export const KN_GLOSSARY = {
+  'double transit': 'ಗುರು–ಶನಿ ದ್ವಿಗೋಚಾರ', transit: 'ಗೋಚಾರ', mahadasha: 'ಮಹಾದಶೆ', dasha: 'ದಶೆ', bhukti: 'ಭುಕ್ತಿ',
+  antardasha: 'ಅಂತರ್ದಶೆ', significator: 'ಕಾರಕ', lord: 'ಅಧಿಪತಿ', retrograde: 'ವಕ್ರ', aspect: 'ದೃಷ್ಟಿ',
+  'own sign': 'ಸ್ವಕ್ಷೇತ್ರ', exalted: 'ಉಚ್ಚ', debilitated: 'ನೀಚ', moolatrikona: 'ಮೂಲತ್ರಿಕೋನ', 'sade sati': 'ಸಾಡೇಸಾತಿ',
+  yoga: 'ಯೋಗ', remedy: 'ಪರಿಹಾರ', house: 'ಮನೆ / ಭಾವ', period: 'ಅವಧಿ',
+}
+
+/**
+ * English words left in a Kannada answer (the model copies terms from the English fact sheets).
+ * Names (`allowed`: the people's and places' names) are fine.
+ */
+export function languageIssues(raw, allowed = []) {
+  const ok = new Set(['ai', ...allowed.flatMap(n => String(n || '').toLowerCase().split(/[^a-z]+/)).filter(Boolean)])
+  const words = [...new Set((raw.match(/[A-Za-z][A-Za-z-]{2,}(?:\s+[A-Za-z][A-Za-z-]{2,})*/g) || []).filter(w => w.toLowerCase().split(/\s+/).some(x => !ok.has(x))))]
+  if (!words.length) return []
+  const terms = Object.entries(KN_GLOSSARY).map(([en, kn]) => `${en} = ${kn}`).join('; ')
+  return [{ kind: 'language', claim: words.slice(0, 8).join(', '), truth: `English inside a Kannada answer — write these in Kannada (${terms})` }]
+}
+
 /** The message that asks the model to correct itself. */
 export function correctionRequest(issues) {
-  return `[Fact check by the app] Your answer contradicts the calculated chart:\n${issues.map(i => `- "${i.claim}" — ${i.truth}`).join('\n')}\n` +
+  return `[Check by the app] Your answer has these problems:\n${issues.map(i => `- "${i.claim}" — ${i.truth}`).join('\n')}\n` +
     'Rewrite the whole answer, fixing only these points and quoting the chart analysis exactly. Do not mention this check.'
 }

@@ -3,7 +3,8 @@
 import { getPanchang } from './api'
 import { shiftDate } from './dates'
 
-const KEY = 'km_panchang_cache'
+// v2: days now carry their festivals; older saved days are calculated again
+const KEY = 'km_panchang_cache_v2'
 const MAX_ENTRIES = 60
 
 export const placeKey = p => `${(+p.lat).toFixed(3)},${(+p.lon).toFixed(3)},${p.tz}`

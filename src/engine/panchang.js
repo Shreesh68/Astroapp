@@ -103,6 +103,80 @@ function tithiName(t) {
   return [paksha, TITHI_NAMES[n]]
 }
 
+// ── Festivals ─────────────────────────────────────────────────────────────
+// A festival falls on the first day whose deciding time of day ("kala") has the festival's tithi, in
+// the festival's amanta month (never in an Adhika month). If the tithi starts and ends between two
+// such times (kshaya), it goes to the day it began. Tithi index: Shukla Prathama 0 … Purnima 14,
+// Krishna Prathama 15 … Amavasya 29. Maasa: Chaitra 0 … Phalguna 11.
+const FESTIVALS = [
+  { key: 'ugadi', maasa: 0, tithi: 0, kala: 'sunrise' },
+  { key: 'rama_navami', maasa: 0, tithi: 8, kala: 'madhyahna' },
+  { key: 'akshaya_tritiya', maasa: 1, tithi: 2, kala: 'sunrise' },
+  { key: 'nagara_panchami', maasa: 4, tithi: 4, kala: 'sunrise' },
+  { key: 'krishna_janmashtami', maasa: 4, tithi: 22, kala: 'nishita' },
+  { key: 'ganesha_chaturthi', maasa: 5, tithi: 3, kala: 'madhyahna' },
+  { key: 'mahalaya_amavasya', maasa: 5, tithi: 29, kala: 'aparahna' },
+  { key: 'navaratri', maasa: 6, tithi: 0, kala: 'sunrise' },
+  { key: 'vijayadashami', maasa: 6, tithi: 9, kala: 'aparahna' },
+  { key: 'naraka_chaturdashi', maasa: 6, tithi: 28, kala: 'arunodaya' },
+  { key: 'deepavali', maasa: 6, tithi: 29, kala: 'pradosha' },
+  { key: 'bali_padyami', maasa: 7, tithi: 0, kala: 'sunrise' },
+  { key: 'utthana_dwadashi', maasa: 7, tithi: 11, kala: 'sunrise' },
+  { key: 'maha_shivaratri', maasa: 10, tithi: 28, kala: 'nishita' },
+  { key: 'holi', maasa: 11, tithi: 14, kala: 'pradosha' },
+  { key: 'ekadashi', maasa: null, tithi: [10, 25], kala: 'sunrise' },
+]
+
+/** The deciding moments of one day, from its sunrise, sunset and the next sunrise. */
+function kalas(sunrise, sunset, nextSunrise) {
+  const day = sunset - sunrise
+  return {
+    arunodaya: sunrise - 0.0667, // about 96 minutes before sunrise
+    sunrise,
+    madhyahna: sunrise + day * 0.5,
+    aparahna: sunrise + day * 0.7,
+    pradosha: sunset + 0.05, // about 72 minutes after sunset
+    nishita: (sunset + nextSunrise) / 2,
+  }
+}
+
+// Observed the day before another festival, as in Karnataka
+const EVE_OF = { gowri_habba: 'ganesha_chaturthi', mahanavami: 'vijayadashami' }
+
+function festivalsOn(date, lat, lon, tz, eves = true) {
+  const dayKalas = d => {
+    const jd0 = jdFromMillis(DateTime.fromISO(date, { zone: tz }).plus({ days: d }).startOf('day').toMillis())
+    const rise = sunEvent(jd0, lat, lon, +1)
+    const set = sunEvent(rise, lat, lon, -1)
+    return kalas(rise, set, sunEvent(set, lat, lon, +1))
+  }
+  const [prev, today, next] = [-1, 0, 1].map(dayKalas)
+  const tithiAt = jd => limbs(jd).tithi
+  const found = []
+  // the festival's month is the one the tithi runs in: for a skipped tithi, the month just after this kala
+  const inMonth = (f, jd) => {
+    const month = lunarMonth(jd)
+    return !month.adhika && (f.maasa == null || month.index === f.maasa)
+  }
+  for (const f of FESTIVALS) {
+    const at = today[f.kala]
+    for (const target of [].concat(f.tithi)) {
+      const now = tithiAt(at)
+      const first = now === target && tithiAt(prev[f.kala]) !== target && inMonth(f, at)
+      const skipped = now === mod(target - 1, 30) && tithiAt(next[f.kala]) === mod(target + 1, 30) && inMonth(f, (at + next[f.kala]) / 2)
+      if (first || skipped) found.push(f.key)
+    }
+  }
+  // Makara Sankranti: the Sun enters sidereal Makara between this sunrise and the next
+  const sign = jd => Math.floor(siderealLongitude(jd, 'sun') / 30)
+  if (sign(today.sunrise) === 8 && sign(next.sunrise) === 9) found.push('makara_sankranti')
+  if (eves) {
+    const tomorrow = festivalsOn(DateTime.fromISO(date).plus({ days: 1 }).toISODate(), lat, lon, tz, false)
+    for (const [eve, of] of Object.entries(EVE_OF)) if (tomorrow.includes(of)) found.unshift(eve)
+  }
+  return found
+}
+
 export function computePanchang(date, lat, lon, tz) {
   if (!DateTime.now().setZone(tz).isValid) throw new ChartInputError(`unknown time zone: '${tz}'`)
   const day = DateTime.fromISO(date, { zone: tz })
@@ -151,5 +225,6 @@ export function computePanchang(date, lat, lon, tz) {
     rahu_kala: segment(RAHU_KALA[weekday]),
     yamaganda: segment(YAMAGANDA[weekday]),
     gulika: segment(GULIKA[weekday]),
+    festivals: festivalsOn(date, lat, lon, tz),
   }
 }
