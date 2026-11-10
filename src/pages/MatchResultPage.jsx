@@ -91,7 +91,7 @@ function MatchView({ groom, bride, data }) {
               <article key={k.key} className="card p-4 animate-rise" style={{ animationDelay: `${i * 50}ms` }}>
                 <div className="flex items-baseline justify-between">
                   <h3 className="font-semibold">{pick(info, lang)}</h3>
-                  <span className="tabular-nums font-bold">{k.score}<span className="text-ink-300 font-normal">/{k.max}</span></span>
+                  <span className="tabular-nums font-bold">{k.score}<span className="text-ink-400 font-normal">/{k.max}</span></span>
                 </div>
                 <div className="mt-2 h-2 rounded-full bg-cream-100 overflow-hidden">
                   <div className={`h-full rounded-full ${tone} transition-[width] duration-700`} style={{ width: `${Math.max(frac * 100, 3)}%` }} />
@@ -126,7 +126,7 @@ function MatchView({ groom, bride, data }) {
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-xs text-ink-300">{t('south_note')}</p>
+        <p className="mt-3 text-xs text-ink-400">{t('south_note')}</p>
       </section>
 
       {/* Doshas */}

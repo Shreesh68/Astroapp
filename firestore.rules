@@ -14,7 +14,12 @@ service cloud.firestore {
           && d.name is string && d.name.size() > 0 && d.name.size() <= 100
           && d.date is string && d.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
           && d.time is string && d.time.matches('^[0-9]{2}:[0-9]{2}$')
-          && d.lat is number && d.lon is number && d.tz is string
+          && d.lat is number && d.lat >= -90 && d.lat <= 90
+          && d.lon is number && d.lon >= -180 && d.lon <= 180
+          && d.tz is string && d.tz.size() <= 64
+          && (!('id' in d) || d.id == personId)
+          && (!('timeUnknown' in d) || d.timeUnknown is bool)
+          && (!('savedAt' in d) || d.savedAt is number)
           && (!('place' in d) || (d.place is string && d.place.size() <= 200))
           && (!('display_name' in d) || (d.display_name is string && d.display_name.size() <= 500))
           && (!('gender' in d) || d.gender in ['male', 'female', ''])

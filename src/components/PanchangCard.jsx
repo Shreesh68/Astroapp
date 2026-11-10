@@ -7,7 +7,9 @@ import { AYANAS_KN, KARANAS_KN, MAASAS_KN, YOGAS_KN, NAKSHATRAS, RUTUS_KN, SAMVA
 import { fmtClock, todayIn } from '../lib/dates'
 
 const PLACE_KEY = 'km_panchang_place'
-export const DEFAULT_PLACE = { name: 'Bengaluru', lat: 12.9716, lon: 77.5946, tz: 'Asia/Kolkata' }
+export const DEFAULT_PLACE = { name: 'Bengaluru', name_kn: 'ಬೆಂಗಳೂರು', lat: 12.9716, lon: 77.5946, tz: 'Asia/Kolkata' }
+/** A place's name in the app's language, where a Kannada name is known. */
+export const placeName = (place, lang) => (lang === 'kn' && place.name_kn) || place.name
 
 export function loadPanchangPlace() {
   try {
@@ -214,7 +216,7 @@ export default function PanchangCard({ data, compact = false }) {
         ))}
       </dl>
 
-      {!compact && <p className="mt-2 text-xs text-ink-300">{t('p_amanta')}</p>}
+      {!compact && <p className="mt-2 text-xs text-ink-400">{t('p_amanta')}</p>}
 
       <div className="mt-4">
         {!compact && <h3 className="text-sm font-semibold text-ink-700 mb-2">{t('p_inauspicious')}</h3>}

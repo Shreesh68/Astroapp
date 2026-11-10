@@ -32,11 +32,12 @@ if (accountsAvailable && !Capacitor.isNativePlatform()) initializeApp(config)
 
 // ── Signed-in state ───────────────────────────────────────
 
-let state = { ready: !accountsAvailable, user: null }
+// synced: the account's kundlis have arrived on this phone (or could not be fetched) since logging in
+let state = { ready: !accountsAvailable, user: null, synced: false }
 const listeners = new Set()
 const setState = next => { state = { ...state, ...next }; listeners.forEach(l => l(state)) }
 
-/** { ready, user: { uid, name, email, phoneNumber, photoUrl } | null } — re-renders on log in / out. */
+/** { ready, user: { uid, name, email, phoneNumber, photoUrl } | null, synced } — re-renders on log in / out. */
 export function useAccount() {
   const [s, set] = useState(state)
   useEffect(() => { listeners.add(set); set(state); return () => listeners.delete(set) }, [])
@@ -129,22 +130,32 @@ export async function logOut() {
 export async function deleteAccount() {
   const { user } = await FirebaseAuthentication.getCurrentUser()
   if (!user) return
-  const ref = collection(user.uid)
+  const uid = user.uid
+  const ref = collection(uid)
   const { snapshots } = await FirebaseFirestore.getCollection({ reference: ref })
-  if (snapshots.length) {
-    await FirebaseFirestore.writeBatch({ operations: snapshots.map(s => ({ type: 'delete', reference: `${ref}/${s.id}` })) })
+  // Firestore takes at most 500 writes in one batch
+  for (let i = 0; i < snapshots.length; i += 450) {
+    await FirebaseFirestore.writeBatch({ operations: snapshots.slice(i, i + 450).map(s => ({ type: 'delete', reference: `${ref}/${s.id}` })) })
   }
   try {
     await FirebaseAuthentication.deleteUser()
   } catch (err) {
     if (!/recent|credential|requires/i.test(String(err?.message || err))) throw err
+    // Firebase wants a fresh sign-in first. The account picker can return a different Google account
+    // (a family phone): only go ahead when it is the same person, never delete someone else's login
     await FirebaseAuthentication.signInWithGoogle()
+    const { user: again } = await FirebaseAuthentication.getCurrentUser()
+    if (again?.uid !== uid) {
+      await FirebaseAuthentication.signOut()
+      throw new Error('wrong_account')
+    }
     await FirebaseAuthentication.deleteUser()
   }
-  // nothing of the account stays on this phone either: its kundlis and the AI chats about them
+  // nothing of the account stays on this phone either: its kundlis, the AI chats about them and
+  // what was told about each person's life
   stopSync()
   try {
-    Object.keys(localStorage).filter(k => k.startsWith('km_chat_')).forEach(k => localStorage.removeItem(k))
+    Object.keys(localStorage).filter(k => k.startsWith('km_chat_') || k.startsWith('km_life_')).forEach(k => localStorage.removeItem(k))
   } catch { /* storage unavailable */ }
   setState({ user: null })
 }
@@ -188,17 +199,20 @@ async function startSync(uid) {
     }
   } catch (err) {
     console.error('kundli sync failed', err)
+    setState({ synced: true }) // carry on with what this phone has
   }
   if (syncing !== uid) return
   // from now on the account's copy is the truth; changes from other phones arrive here too
   listenerId = await FirebaseFirestore.addCollectionSnapshotListener({ reference: ref }, (event, error) => {
     if (error) return console.error('kundli listener', error)
     if (event) replaceProfiles(event.snapshots.filter(s => s.data).map(s => ({ ...s.data, id: s.id })))
+    if (!state.synced) setState({ synced: true })
   })
 }
 
 function stopSync() {
   syncing = null
+  setState({ synced: false })
   setCloudSink(null)
   if (listenerId) FirebaseFirestore.removeSnapshotListener({ callbackId: listenerId }).catch(() => {})
   listenerId = null

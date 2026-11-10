@@ -8,6 +8,7 @@
 // Anything else in the answer is left alone: only claims the app can verify are checked.
 import { RASHI_LORD } from '../engine/constants'
 import { signStatus } from '../engine/analysis'
+import { KN_GLOSSARY } from './knTerms'
 
 const PLANETS = ['sun', 'moon', 'mars', 'mercury', 'jupiter', 'venus', 'saturn', 'rahu', 'ketu']
 const EN_PLANET = '(Sun|Moon|Mars|Mercury|Jupiter|Venus|Saturn|Rahu|Ketu)'
@@ -150,13 +151,7 @@ export function checkAnswer(raw, facts) {
   return issues
 }
 
-// Terms the app's fact sheets give in English, as a Kannada answer should say them
-export const KN_GLOSSARY = {
-  'double transit': 'ಗುರು–ಶನಿ ದ್ವಿಗೋಚಾರ', transit: 'ಗೋಚಾರ', mahadasha: 'ಮಹಾದಶೆ', dasha: 'ದಶೆ', bhukti: 'ಭುಕ್ತಿ',
-  antardasha: 'ಅಂತರ್ದಶೆ', significator: 'ಕಾರಕ', lord: 'ಅಧಿಪತಿ', retrograde: 'ವಕ್ರ', aspect: 'ದೃಷ್ಟಿ',
-  'own sign': 'ಸ್ವಕ್ಷೇತ್ರ', exalted: 'ಉಚ್ಚ', debilitated: 'ನೀಚ', moolatrikona: 'ಮೂಲತ್ರಿಕೋನ', 'sade sati': 'ಸಾಡೇಸಾತಿ',
-  yoga: 'ಯೋಗ', remedy: 'ಪರಿಹಾರ', house: 'ಮನೆ / ಭಾವ', period: 'ಅವಧಿ',
-}
+export { KN_GLOSSARY } from './knTerms'
 
 /**
  * English words left in a Kannada answer (the model copies terms from the English fact sheets).

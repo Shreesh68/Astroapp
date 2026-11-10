@@ -6,7 +6,7 @@ import { PRIVACY_URL } from '../lib/contact'
 import { astrologerAvailable } from '../lib/astrologer'
 import { fmtLongDate } from '../lib/dates'
 import { removeProfile, useProfiles } from '../lib/profiles'
-import { chartPath, profileToParams } from '../lib/share'
+import { chartPath, profileToParams, shortName } from '../lib/share'
 import { Avatar } from '../components/BirthWizard'
 
 /** The logged-in person's page: their own kundli, the other kundlis in their account, and log out. */
@@ -27,7 +27,7 @@ export default function Account() {
       navigate('/', { replace: true })
     } catch (err) {
       console.error('delete account', err)
-      setDeleteFailed(true)
+      setDeleteFailed(err?.message === 'wrong_account' ? 'wrong_account' : true)
     } finally {
       setDeleting(false)
     }
@@ -46,7 +46,7 @@ export default function Account() {
         <p className="eyebrow !text-turmeric">{t('acc_eyebrow')}</p>
         <p className="mt-1 font-display text-2xl font-semibold truncate">{who}</p>
         {detail && <p className="text-sm text-cream/75 truncate">{detail}</p>}
-        <p className="mt-2 text-sm text-cream/75">{t('acc_sub', { n: profiles.length })}</p>
+        <p className="mt-2 text-sm text-cream/75">{t(profiles.length === 1 ? 'acc_sub_one' : 'acc_sub', { n: profiles.length })}</p>
       </section>
 
       <section className="card card-pad">
@@ -68,7 +68,7 @@ export default function Account() {
         )}
         {self && astrologerAvailable && (
           <Link to={`/ask?${profileToParams(self)}`} className="mt-4 flex items-center justify-between rounded-xl bg-cream px-4 py-3 text-sm font-semibold hover:bg-cream-100">
-            ✺ {t('ai_chart_cta', { name: self.name.split(' ')[0] })} <span aria-hidden>→</span>
+            ✺ {t('ai_chart_cta', { name: shortName(self.name) })} <span aria-hidden>→</span>
           </Link>
         )}
       </section>
@@ -97,7 +97,7 @@ export default function Account() {
                     <span className="block font-semibold truncate">{p.name}</span>
                     <span className="block text-xs text-ink-500 truncate">{p.date} · {p.place}</span>
                   </Link>
-                  <button onClick={() => setConfirming(p.id)} className="text-ink-300 hover:text-kumkum text-lg leading-none px-1" aria-label={`${t('home_remove')} ${p.name}`}>×</button>
+                  <button onClick={() => setConfirming(p.id)} className="-my-2 -mr-2 flex h-11 w-11 shrink-0 items-center justify-center text-xl leading-none text-ink-400 hover:text-kumkum" aria-label={`${t('home_remove')} ${p.name}`}>×</button>
                 </div>
               )}
             </li>
@@ -116,8 +116,8 @@ export default function Account() {
           </div>
         ) : confirming === 'delete' ? (
           <div className="card card-pad">
-            <p className="text-sm mb-3">{t('acc_delete_q', { n: profiles.length })}</p>
-            {deleteFailed && <p className="text-sm text-kumkum mb-3">{t('acc_delete_failed')}</p>}
+            <p className="text-sm mb-3">{t(profiles.length === 1 ? 'acc_delete_q_one' : 'acc_delete_q', { n: profiles.length })}</p>
+            {deleteFailed && <p role="alert" className="text-sm text-kumkum mb-3">{t(deleteFailed === 'wrong_account' ? 'acc_delete_wrong' : 'acc_delete_failed')}</p>}
             <div className="flex flex-wrap justify-center gap-2">
               <button disabled={deleting} onClick={onDelete} className="btn-primary !bg-kumkum">{deleting ? '…' : t('acc_delete_yes')}</button>
               <button disabled={deleting} onClick={() => { setConfirming(null); setDeleteFailed(false) }} className="btn-ghost">{t('cancel')}</button>

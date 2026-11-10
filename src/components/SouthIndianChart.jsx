@@ -39,36 +39,39 @@ export default function SouthIndianChart({ ephem, lang = 'en', size = 'md', sele
 
   return (
     <div className={`w-full mx-auto select-none ${lg ? 'max-w-[480px]' : 'max-w-[340px]'}`}>
-      <div className="grid grid-cols-4 grid-rows-4 aspect-square rounded-xl overflow-hidden border-2 border-turmeric-700 bg-cream-100 gap-px">
+      {/* square cells that may grow taller with a large phone font, so names and planets are never cut off */}
+      <div className="grid grid-cols-4 rounded-xl overflow-hidden border-2 border-turmeric-700 bg-cream-100 gap-px">
         {SIGN_CELLS.map(({ sign, row, col }) => {
           const isLagna = sign === ascSign
           const isSel = sign === selected
           const planets = bySign[sign] || []
           const house = ascSign != null ? ((sign - ascSign + 12) % 12) + 1 : null
           const Tag = interactive ? 'button' : 'div'
-          const label = `${rashiName(sign, lang)}${house ? `, ${translate(lang, 'house_n', { n: house })}` : ''}: ${planets.map(p => PLANETS[p.key][lang === 'kn' ? 'kn' : 'en']).join(', ') || '—'}`
+          // read out in full (degrees too, which otherwise live only in a tooltip phones can't show)
+          const label = `${rashiName(sign, lang)}${house ? `, ${translate(lang, 'house_n', { n: house })}` : ''}: ${planets.map(p => `${PLANETS[p.key][lang === 'kn' ? 'kn' : 'en']} ${p.degree.toFixed(0)}°${p.retrograde && p.key !== 'rahu' && p.key !== 'ketu' ? (lang === 'kn' ? ' ವಕ್ರ' : ' retrograde') : ''}`).join(', ') || '—'}`
           return (
             <Tag
               key={sign}
               type={interactive ? 'button' : undefined}
               onClick={interactive ? () => onSelect(sign) : undefined}
-              aria-label={interactive ? label : undefined}
+              role={interactive ? undefined : 'group'}
+              aria-label={label}
               aria-pressed={interactive ? isSel : undefined}
               style={{ gridRow: row, gridColumn: col }}
-              className={`relative flex flex-col text-left min-h-0 overflow-hidden transition
+              className={`relative flex flex-col text-left aspect-square transition
                 ${lg ? 'p-1.5 sm:p-2' : 'p-1'}
                 ${isSel ? 'bg-turmeric/25 ring-2 ring-inset ring-turmeric-600 z-10' : isLagna ? 'bg-cream-100' : 'bg-white'}
                 ${interactive ? 'cursor-pointer hover:bg-cream focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-kumkum' : ''}`}
             >
               {/* words never break: on a small chart "Lagna" moves under the sign name instead */}
               <span className="flex flex-wrap items-start justify-between gap-x-1">
-                <span className={`whitespace-nowrap leading-tight font-medium text-turmeric-700 ${lg ? 'text-[10px] sm:text-xs' : 'text-[9px]'}`}>{rashiName(sign, lang)}</span>
+                <span className={`whitespace-nowrap leading-tight font-medium text-turmeric-800 ${lg ? 'text-[10px] sm:text-xs' : 'text-[9px]'}`}>{rashiName(sign, lang)}</span>
                 {isLagna && <span className={`whitespace-nowrap leading-tight font-bold text-kumkum ${lg ? 'text-[10px] sm:text-xs' : 'text-[9px]'}`}>{lagnaLabel}</span>}
               </span>
               <span className="mt-auto flex flex-wrap gap-x-1.5 gap-y-0.5">
                 {planets.map(p => (
                   <span key={p.key}
-                    className={`font-bold leading-tight animate-pop ${lg ? 'text-xs sm:text-sm' : 'text-[11px]'} ${p.key === 'rahu' || p.key === 'ketu' ? 'text-ink-500' : 'text-ink'}`}
+                    className={`whitespace-nowrap font-bold leading-tight animate-pop ${lg ? 'text-xs sm:text-sm' : 'text-[11px]'} ${p.key === 'rahu' || p.key === 'ketu' ? 'text-ink-500' : 'text-ink'}`}
                     style={{ animationDelay: `${120 + order++ * 70}ms` }}
                     title={`${PLANETS[p.key][lang === 'kn' ? 'kn' : 'en']} ${p.degree.toFixed(1)}°${p.retrograde && p.key !== 'rahu' && p.key !== 'ketu' ? ' (R)' : ''}`}>
                     {PLANETS[p.key].short[lang === 'kn' ? 'kn' : 'en']}

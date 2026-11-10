@@ -14,12 +14,14 @@ import { searchNominatim, searchPhoton } from '../lib/places'
  *   autoFocus
  */
 // dropUp: the suggestions open above the box, for a search box at the bottom of the screen (the AI chat)
-export default function PlaceSearch({ value = null, onLocationSelect, autoFocus = false, dropUp = false }) {
+// labelledBy: the id of the question this box answers, so screen readers read it with the box
+export default function PlaceSearch({ value = null, onLocationSelect, autoFocus = false, dropUp = false, labelledBy }) {
   const { t } = useLanguage()
   const [query, setQuery] = useState(value?.name || '')
   const [suggestions, setSuggestions] = useState([])
   const [fetching, setFetching] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [failed, setFailed] = useState(false) // the search could not reach the server (offline, blocked)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
   const debounceRef = useRef(null)
@@ -42,9 +44,11 @@ export default function PlaceSearch({ value = null, onLocationSelect, autoFocus 
     setQuery(q)
     if (selected) onLocationSelect(null)
     setSearched(false)
+    setFailed(false)
     setActive(-1)
     clearTimeout(debounceRef.current)
-    if (q.trim().length < 3) { setSuggestions([]); return }
+    // a shorter query cancels a search still on its way, so old results can't pop up afterwards
+    if (q.trim().length < 3) { abortRef.current?.abort(); setSuggestions([]); return }
     debounceRef.current = setTimeout(() => fetchSuggestions(q.trim()), 300)
   }
 
@@ -53,6 +57,7 @@ export default function PlaceSearch({ value = null, onLocationSelect, autoFocus 
     const ctrl = new AbortController()
     abortRef.current = ctrl
     setFetching(true)
+    setFailed(false)
     try {
       let places = await searchPhoton(q, ctrl.signal).catch(err => {
         if (err.name === 'AbortError') throw err
@@ -63,7 +68,11 @@ export default function PlaceSearch({ value = null, onLocationSelect, autoFocus 
       setSearched(true)
       setOpen(true)
     } catch (err) {
-      if (err.name !== 'AbortError') console.error('PlaceSearch error', err)
+      if (err.name !== 'AbortError') {
+        console.error('PlaceSearch error', err)
+        setFailed(true)
+        setOpen(true)
+      }
     } finally {
       if (abortRef.current === ctrl) setFetching(false)
     }
@@ -77,6 +86,9 @@ export default function PlaceSearch({ value = null, onLocationSelect, autoFocus 
   }
 
   function clear() {
+    abortRef.current?.abort()
+    clearTimeout(debounceRef.current)
+    setFailed(false)
     setQuery('')
     setSuggestions([])
     setSearched(false)
@@ -108,19 +120,27 @@ export default function PlaceSearch({ value = null, onLocationSelect, autoFocus 
           autoComplete="off"
           autoFocus={autoFocus}
           role="combobox"
+          aria-labelledby={labelledBy}
           aria-expanded={open}
           aria-controls={listId}
           aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
         />
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-          {fetching && <span className="text-xs text-ink-300 animate-pulse">{t('place_searching')}</span>}
+          {fetching && <span className="text-xs text-ink-400 animate-pulse">{t('place_searching')}</span>}
           {(selected || query) && !fetching && (
-            <button type="button" onClick={clear} className="text-ink-300 hover:text-kumkum text-xl leading-none" aria-label={t('place_clear')}>×</button>
+            <button type="button" onClick={clear} className="-mr-3 flex h-11 w-11 items-center justify-center text-xl leading-none text-ink-400 hover:text-kumkum" aria-label={t('place_clear')}>×</button>
           )}
         </div>
       </div>
 
-      {open && searched && (
+      {open && failed && (
+        <div role="alert" className={`absolute z-50 w-full rounded-xl border border-cream-200 bg-white px-4 py-3 text-sm shadow-lg ${dropUp ? 'bottom-full mb-1' : 'mt-1'}`}>
+          <p className="text-ink-700">{t(typeof navigator !== 'undefined' && navigator.onLine === false ? 'place_offline' : 'place_failed')}</p>
+          <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => fetchSuggestions(query.trim())} className="mt-1 font-semibold text-kumkum underline">{t('retry')}</button>
+        </div>
+      )}
+
+      {open && searched && !failed && (
         <ul id={listId} role="listbox"
           className={`absolute z-50 w-full bg-white border border-cream-200 rounded-xl shadow-lg overflow-auto animate-rise
             ${dropUp ? 'bottom-full mb-1 max-h-[min(16rem,45dvh)]' : 'mt-1 max-h-64'}`}>

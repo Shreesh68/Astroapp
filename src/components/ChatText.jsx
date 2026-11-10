@@ -58,21 +58,35 @@ const LINK_LABEL = {
   'ಏಕೆ — ನಿಮ್ಮ ಜಾತಕದಲ್ಲಿ': 'ಏಕೆ? ನಿಮ್ಮ ಜಾತಕದ ಕಾರಣಗಳು', 'ಯಾವಾಗ': 'ಎಲ್ಲಾ ದಿನಾಂಕಗಳು', 'ಸಲಹೆ': 'ಏನು ಮಾಡಬಹುದು',
 }
 const asHeading = line => {
-  const bare = line.trim().replace(/^#{1,6}\s*/, '').replace(/^\*\*(.*)\*\*$/, '$1').replace(/:$/, '').replace(/\s+[-–]\s+/, ' — ').trim()
+  // however the model marks a heading up: "### When", "**When**:", "When?", "ಏಕೆ—ನಿಮ್ಮ ಜಾತಕದಲ್ಲಿ"
+  const bare = line.trim().replace(/^#{1,6}\s*/, '').replace(/\*\*/g, '').replace(/[:：?？.]+$/, '').replace(/\s*[-–—]\s*/, ' — ').trim()
   return HEADINGS.includes(bare.toLowerCase()) ? bare : null
 }
 
-/** An answer cut at its section headings: the opening, then [{ title, body }]. */
+/**
+ * An answer cut at its section headings: the opening, the sections [{ title, body }], and a closing
+ * question (`ask`) — the model sometimes ends its last section with a question for the person, which
+ * must stay in sight rather than hide behind a link.
+ */
 export function splitAnswer(text = '') {
-  const lines = text.split('\n')
   const sections = []
   const head = []
-  for (const line of lines) {
+  for (const line of text.split('\n')) {
     const title = asHeading(line)
     if (title) sections.push({ title, body: [] })
     else (sections.at(-1)?.body ?? head).push(line)
   }
-  return { head: head.join('\n').trim(), sections: sections.map(x => ({ title: x.title, body: x.body.join('\n').trim() })).filter(x => x.body) }
+  const out = sections.map(x => ({ title: x.title, body: x.body.join('\n').trim() })).filter(x => x.body)
+  let ask = ''
+  const last = out.at(-1)
+  if (last) {
+    const paras = last.body.split(/\n{2,}/)
+    if (paras.length > 1 && /[?？]\s*$/.test(paras.at(-1))) {
+      ask = paras.pop().trim()
+      last.body = paras.join('\n\n').trim()
+    }
+  }
+  return { head: head.join('\n').trim(), sections: out, ask }
 }
 
 /**
@@ -81,7 +95,7 @@ export function splitAnswer(text = '') {
  * opening shows, with a note that the details are coming.
  */
 export function AnswerWithDetails({ text, writing = false, detailsLabel }) {
-  const { head, sections } = splitAnswer(text)
+  const { head, sections, ask } = splitAnswer(text)
   const [open, setOpen] = useState(() => new Set())
   if (!sections.length) return <Answer text={text} />
   const toggle = i => setOpen(prev => { const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next })
@@ -95,7 +109,7 @@ export function AnswerWithDetails({ text, writing = false, detailsLabel }) {
             {sections.map((x, i) => (
               <div key={i}>
                 <button type="button" onClick={() => toggle(i)} aria-expanded={open.has(i)}
-                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-semibold text-turmeric-700">
+                  className="flex min-h-11 w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-semibold text-turmeric-800">
                   <span>{LINK_LABEL[x.title.toLowerCase()] || x.title}</span><span aria-hidden className={`transition ${open.has(i) ? 'rotate-90' : ''}`}>›</span>
                 </button>
                 {open.has(i) && <div className="px-3 pb-3 text-[15px]"><Answer text={x.body} /></div>}
@@ -103,6 +117,7 @@ export function AnswerWithDetails({ text, writing = false, detailsLabel }) {
             ))}
           </div>
         )}
+      {!writing && ask && <Answer text={ask} />}
     </div>
   )
 }

@@ -15,7 +15,7 @@ const RESEND_AFTER = 60 // seconds
 export default function Login() {
   const { t } = useLanguage()
   const navigate = useNavigate()
-  const { user } = useAccount()
+  const { user, synced } = useAccount()
   const { self } = useProfiles()
   const [step, setStep] = useState('start') // start | number | confirm | code | me
   const [number, setNumber] = useState('')
@@ -33,13 +33,14 @@ export default function Login() {
     const id = setTimeout(() => setWait(w => w - 1), 1000)
     return () => clearTimeout(id)
   }, [wait])
-  // logged in (by the code, or by Android reading the SMS): ask for their own details once
+  // logged in (by the code, or by Android reading the SMS): ask for their own details once — but only
+  // after the account's kundlis have arrived, so a returning user on a new phone isn't asked again
   useEffect(() => {
-    if (!user) return
+    if (!user || !synced) return
     stopRef.current?.()
     if (self) navigate('/account', { replace: true })
     else setStep('me')
-  }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, synced]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function send(resend = false) {
     if (!phone) return setError('bad_number')
@@ -110,7 +111,7 @@ export default function Login() {
                 📱 {t('login_with_mobile')}
               </button>
             )}
-            <p className="mt-4 text-xs text-ink-300">{t('login_google_note')}</p>
+            <p className="mt-4 text-xs text-ink-400">{t('login_google_note')}</p>
           </div>
         ) : step === 'confirm' ? (
           <div>
@@ -142,7 +143,7 @@ export default function Login() {
             <button type="submit" disabled={number.length !== 10} className="btn-primary mt-5 w-full">
               {t('login_send')}
             </button>
-            <p className="mt-3 text-xs text-ink-300">{t('login_sms_note')}</p>
+            <p className="mt-3 text-xs text-ink-400">{t('login_sms_note')}</p>
           </form>
         ) : (
           <form onSubmit={verify}>

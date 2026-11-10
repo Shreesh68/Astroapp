@@ -2,14 +2,14 @@
 // Index order matches the backend (Mesha = 0, Ashwini = 0).
 
 export const RASHIS = [
-  { en: 'Mesha',     kn: 'ಮೇಷ',     west: 'Aries',       trait: { en: 'courageous, quick to act and independent', kn: 'ಧೈರ್ಯಶಾಲಿ, ಚುರುಕು ಮತ್ತು ಸ್ವತಂತ್ರ ಸ್ವಭಾವ' } },
+  { en: 'Mesha',     kn: 'ಮೇಷ',     west: 'Aries',       trait: { en: 'courageous, quick to act and independent', kn: 'ಧೈರ್ಯಶಾಲಿ, ಚುರುಕು ಮತ್ತು ಸ್ವತಂತ್ರ' } },
   { en: 'Vrishabha', kn: 'ವೃಷಭ',    west: 'Taurus',      trait: { en: 'steady, loyal and fond of comfort and beauty', kn: 'ಸ್ಥಿರ, ನಿಷ್ಠಾವಂತ ಮತ್ತು ಸೌಂದರ್ಯ ಪ್ರಿಯ' } },
   { en: 'Mithuna',   kn: 'ಮಿಥುನ',   west: 'Gemini',      trait: { en: 'curious, talkative and quick-witted', kn: 'ಕುತೂಹಲಿ, ಮಾತುಗಾರ ಮತ್ತು ಚತುರ ಬುದ್ಧಿ' } },
   { en: 'Karka',     kn: 'ಕರ್ಕ',     west: 'Cancer',      trait: { en: 'caring, emotional and devoted to family', kn: 'ಮಮತೆಯುಳ್ಳ, ಭಾವುಕ ಮತ್ತು ಕುಟುಂಬ ಪ್ರೇಮಿ' } },
   { en: 'Simha',     kn: 'ಸಿಂಹ',     west: 'Leo',         trait: { en: 'generous, dignified and a natural leader', kn: 'ಉದಾರ, ಆತ್ಮಗೌರವವುಳ್ಳ ಸಹಜ ನಾಯಕ' } },
   { en: 'Kanya',     kn: 'ಕನ್ಯಾ',    west: 'Virgo',       trait: { en: 'practical, careful and helpful', kn: 'ವ್ಯಾವಹಾರಿಕ, ಜಾಗರೂಕ ಮತ್ತು ಸಹಾಯಕ' } },
   { en: 'Tula',      kn: 'ತುಲಾ',     west: 'Libra',       trait: { en: 'balanced, fair-minded and harmony-seeking', kn: 'ಸಮತೋಲನ, ನ್ಯಾಯಪರ ಮತ್ತು ಸಾಮರಸ್ಯ ಪ್ರಿಯ' } },
-  { en: 'Vrischika', kn: 'ವೃಶ್ಚಿಕ',  west: 'Scorpio',     trait: { en: 'intense, determined and private', kn: 'ತೀವ್ರ ಭಾವನೆ, ದೃಢ ನಿಶ್ಚಯ ಮತ್ತು ಗುಟ್ಟು ಕಾಪಾಡುವ ಸ್ವಭಾವ' } },
+  { en: 'Vrischika', kn: 'ವೃಶ್ಚಿಕ',  west: 'Scorpio',     trait: { en: 'intense, determined and private', kn: 'ತೀವ್ರ ಭಾವನೆ, ದೃಢ ನಿಶ್ಚಯ ಮತ್ತು ಗುಟ್ಟು ಕಾಪಾಡುವ ಗುಣ' } },
   { en: 'Dhanu',     kn: 'ಧನು',      west: 'Sagittarius', trait: { en: 'optimistic, principled and a lover of learning', kn: 'ಆಶಾವಾದಿ, ತತ್ವನಿಷ್ಠ ಮತ್ತು ಜ್ಞಾನ ಪ್ರಿಯ' } },
   { en: 'Makara',    kn: 'ಮಕರ',     west: 'Capricorn',   trait: { en: 'disciplined, patient and hard-working', kn: 'ಶಿಸ್ತು, ತಾಳ್ಮೆ ಮತ್ತು ಕಠಿಣ ಪರಿಶ್ರಮಿ' } },
   { en: 'Kumbha',    kn: 'ಕುಂಭ',     west: 'Aquarius',    trait: { en: 'an independent thinker who cares about society', kn: 'ಸ್ವತಂತ್ರ ಚಿಂತಕ, ಸಮಾಜಮುಖಿ' } },

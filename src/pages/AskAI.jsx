@@ -10,12 +10,12 @@ import { NAKSHATRAS, RASHIS, deityName, nakName, pick, planetName, rashiName } f
 import { fmtLongDate, fmtMonthYear, fmtTime } from '../lib/dates'
 import { getTimezone } from '../lib/geocode'
 import { saveEdits, saveProfile, useProfiles } from '../lib/profiles'
-import { chartPath, paramsToProfile, profileToParams } from '../lib/share'
+import { chartPath, paramsToProfile, profileToParams, shortName } from '../lib/share'
 import { currentDasha } from '../components/DashaTimeline'
 import { DateFields, TimeFields } from '../components/DateTimeFields'
 import PlaceSearch from '../components/PlaceSearch'
 import SouthIndianChart from '../components/SouthIndianChart'
-import { AnswerWithDetails } from '../components/ChatText'
+import { AnswerWithDetails, splitAnswer } from '../components/ChatText'
 
 /**
  * "Ask AI": a WhatsApp-style chat with the AI astrologer. Without a person in the URL it first asks for
@@ -46,16 +46,23 @@ function useVisibleHeight() {
   return height
 }
 
-function Shell({ subtitle, actions, follow, children, composer }) {
+function Shell({ subtitle, actions, follow, children, composer, announce = '', pin }) {
   const { t, lang, setLang } = useLanguage()
   const navigate = useNavigate()
   const height = useVisibleHeight()
   const scroller = useRef(null)
-  // stay pinned to the newest message while it streams in
+  // follow the newest message while it streams in — unless the person has scrolled up to read
+  const atBottom = useRef(true)
   useLayoutEffect(() => {
     const el = scroller.current
-    if (el) el.scrollTop = el.scrollHeight
+    if (el && atBottom.current) el.scrollTop = el.scrollHeight
   }, [follow, height])
+  // a new message from the person brings the view back down
+  useLayoutEffect(() => { atBottom.current = true }, [pin])
+  const onScroll = e => {
+    const el = e.currentTarget
+    atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+  }
 
   return (
     <div className="fixed inset-x-0 top-0 z-50 flex flex-col bg-[#EFE7DA]" style={{ height: height ? `${height}px` : '100dvh' }}>
@@ -71,7 +78,9 @@ function Shell({ subtitle, actions, follow, children, composer }) {
         <button type="button" onClick={() => setLang(lang === 'en' ? 'kn' : 'en')} lang={lang === 'en' ? 'kn' : 'en'}
           className="rounded-full px-3 py-1.5 text-xs font-semibold text-cream/90 ring-1 ring-white/25 hover:bg-white/10">{t('lang_toggle')}</button>
       </header>
-      <div ref={scroller} className="flex-1 space-y-2 overflow-y-auto px-3 py-4" aria-live="polite">
+      {/* one calm announcement for screen readers (answer started / its opening), never every streamed piece */}
+      <p role="status" aria-live="polite" className="sr-only">{announce}</p>
+      <div ref={scroller} onScroll={onScroll} className="flex-1 space-y-2 overflow-y-auto px-3 py-4">
         <p className="mx-auto mb-3 max-w-xs rounded-lg bg-[#FFF5C4] px-3 py-1.5 text-center text-[11px] text-ink-700 shadow-sm">{t('ask_note')}</p>
         {children}
       </div>
@@ -83,13 +92,16 @@ function Shell({ subtitle, actions, follow, children, composer }) {
 }
 
 function Bubble({ from, time, ticks, extra, children }) {
+  const { lang } = useLanguage()
   const mine = from === 'me'
+  // times are kept as "18:05" and shown like every other time in the app ("6:05 pm" / "ಸಂಜೆ 6:05")
+  const shown = time && /^\d{2}:\d{2}$/.test(time) ? fmtTime(time, lang) : time
   return (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'} animate-rise`}>
       <div className={`relative max-w-[85%] rounded-xl px-3 pb-1.5 pt-2 text-[15px] leading-relaxed text-ink shadow-sm
         ${mine ? 'rounded-tr-none bg-[#D9FDD3]' : 'rounded-tl-none bg-white'}`}>
         {children}
-        {time && <span className="mt-0.5 flex items-center justify-end gap-2 text-[10px] text-ink-500">{extra}<span className="flex items-center">{time}{ticks}</span></span>}
+        {time && <span className="mt-0.5 flex items-center justify-end gap-2 text-[10px] text-ink-500">{extra}<span className="flex items-center">{shown}{ticks}</span></span>}
       </div>
     </div>
   )
@@ -98,8 +110,8 @@ function Bubble({ from, time, ticks, extra, children }) {
 function Typing({ label }) {
   return (
     <Bubble from="bot">
-      <span className="flex items-center gap-1 py-1" aria-label={label}>
-        {[0, 150, 300].map(d => <span key={d} className="h-2 w-2 animate-bounce rounded-full bg-ink-300" style={{ animationDelay: `${d}ms` }} />)}
+      <span className="flex items-center gap-1 py-1">
+        {[0, 150, 300].map(d => <span key={d} aria-hidden className="h-2 w-2 animate-bounce rounded-full bg-ink-300" style={{ animationDelay: `${d}ms` }} />)}
         {label && <span className="ml-2 text-sm text-ink-500">{label}</span>}
       </span>
     </Bubble>
@@ -280,8 +292,9 @@ const ERRORS = ['refused', 'busy', 'daily_limit', 'unavailable', 'failed', 'too_
 
 /** WhatsApp-style ticks on the person's own messages: ✓ sent, blue ✓✓ read (the answer has started). */
 function Ticks({ status }) {
-  if (status === 'read') return <span className="ml-1 text-[13px] tracking-[-0.35em] text-sky-500" aria-label="read">✓✓</span>
-  if (status === 'sent') return <span className="ml-1 text-[13px] text-ink-300" aria-label="sent">✓</span>
+  const { t } = useLanguage()
+  if (status === 'read') return <span role="img" className="ml-1 text-[13px] tracking-[-0.35em] text-sky-600" aria-label={t('ai_tick_read')}>✓✓</span>
+  if (status === 'sent') return <span role="img" className="ml-1 text-[13px] text-ink-500" aria-label={t('ai_tick_sent')}>✓</span>
   return null
 }
 
@@ -292,7 +305,7 @@ function ChartChat({ profile }) {
   // the conversation lives in lib/chats, so an answer keeps coming even if this screen is closed
   const { messages, pending } = useChat(key)
   const [draft, setDraft] = useState('')
-  const first = profile.name.split(' ')[0]
+  const first = shortName(profile.name)
 
   useEffect(() => { getChart(profile).then(setChart, () => setChart(false)) }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
   // a question left unanswered because Android closed the app is answered now
@@ -344,13 +357,17 @@ function ChartChat({ profile }) {
 
   return (
     <Shell subtitle={pending ? t('ai_typing') : t('ai_about', { name: first })} actions={actions} composer={composer}
-      follow={`${messages.length}-${pending?.text.length ?? -1}-${!!failed}-${!!chart}`}>
+      follow={`${messages.length}-${pending?.text.length ?? -1}-${!!failed}-${!!chart}`} pin={messages.length}
+      announce={pending ? t('ai_typing') : messages.at(-1)?.role === 'assistant' ? splitAnswer(messages.at(-1).content).head : ''}>
       <Bubble from="bot">
-        {chart ? <KundliSummary profile={profile} chart={chart} /> : <p>{t('ai_chart_ready', { name: first })}</p>}
+        {chart ? <KundliSummary profile={profile} chart={chart} />
+          : chart === false
+            ? <p role="alert">{t('ai_chart_failed')} <Link to="/birth-chart" className="font-semibold text-kumkum underline">{t('ai_chart_redo')}</Link></p>
+            : <p>{t('ai_chart_ready', { name: first })}</p>}
       </Bubble>
       {messages.map((m, i) => (
         <Bubble key={i} from={m.role === 'user' ? 'me' : 'bot'} time={m.time} ticks={m.role === 'user' && m.status !== 'failed' ? <Ticks status={m.status || 'read'} /> : null}
-          extra={m.role === 'assistant' && <a href={reportLink(messages[i - 1]?.content, m.content)} className="mr-auto underline">⚑ {t('ask_report')}</a>}>
+          extra={m.role === 'assistant' && <a href={reportLink(messages[i - 1]?.content, m.content)} className="-my-2 mr-auto px-1 py-2 text-xs underline">⚑ {t('ask_report')}</a>}>
           {m.role === 'user' ? <p className="whitespace-pre-wrap">{m.content}</p> : <AnswerWithDetails text={m.content} />}
         </Bubble>
       ))}
@@ -374,7 +391,7 @@ function ChartChat({ profile }) {
  */
 function KundliSummary({ profile, chart }) {
   const { t, lang } = useLanguage()
-  const first = profile.name.split(' ')[0]
+  const first = shortName(profile.name)
   const moon = chart.planets.moon
   const asc = chart.ascendant
   const nak = NAKSHATRAS[moon.nakshatra_index]
@@ -406,7 +423,7 @@ function KundliSummary({ profile, chart }) {
 function AboutLife({ profile }) {
   const { t } = useLanguage()
   const life = useLife(profile)
-  const name = profile.name.split(' ')[0]
+  const name = shortName(profile.name)
   const row = (field, options) => (
     <div>
       <p className="mb-1 text-xs text-ink-500">{t(`life_q_${field}`, { name })}</p>

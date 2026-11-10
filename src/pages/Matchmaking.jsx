@@ -65,7 +65,7 @@ export default function Matchmaking(){
             <li key={s.key} className="flex items-center gap-3 flex-1">
               <button type="button" onClick={() => s.person && setStage(s.key)} disabled={!s.person && stage !== s.key}
                 className={`flex items-center gap-2 rounded-full pl-1 pr-4 py-1 text-sm font-semibold transition w-full
-                  ${stage === s.key ? 'bg-ink text-cream' : s.person ? 'bg-white ring-1 ring-cream-200 hover:ring-turmeric' : 'bg-cream-100 text-ink-300'}`}>
+                  ${stage === s.key ? 'bg-ink text-cream' : s.person ? 'bg-white ring-1 ring-cream-200 hover:ring-turmeric' : 'bg-cream-100 text-ink-400'}`}>
                 {s.person ? <Avatar name={s.person.name} className="!h-7 !w-7 text-sm" />
                   : <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/20 ring-1 ring-current">{i + 1}</span>}
                 <span className="truncate">{s.person ? s.person.name : s.label}</span>

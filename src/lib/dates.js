@@ -3,8 +3,10 @@ import { DateTime } from 'luxon'
 const locale = lang => (lang === 'kn' ? 'kn' : 'en-IN')
 
 /** 'YYYY-MM-DD' → "Saturday, 19 February 2000" */
-export const fmtLongDate = (date, lang) =>
-  DateTime.fromISO(date).setLocale(locale(lang)).toLocaleString({ weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+export const fmtLongDate = (date, lang) => (lang === 'kn'
+  // day first, as dates are written in Karnataka ("ಶನಿವಾರ, 19 ಫೆಬ್ರವರಿ 2000"), not CLDR's month first
+  ? DateTime.fromISO(date).setLocale('kn').toFormat('cccc, d MMMM yyyy')
+  : DateTime.fromISO(date).setLocale(locale(lang)).toLocaleString({ weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))
 
 export const fmtShortDate = (date, lang) =>
   DateTime.fromISO(date).setLocale(locale(lang)).toLocaleString({ day: 'numeric', month: 'short', year: 'numeric' })

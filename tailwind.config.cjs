@@ -10,10 +10,11 @@ module.exports = {
         },
         // warm "temple lamp" palette
         cream:   { DEFAULT: '#FDF8F0', 100: '#FBF1E1', 200: '#F5E3C3' },
-        turmeric:{ DEFAULT: '#E0A526', 600: '#C78A12', 700: '#9C6A0A' },
+        turmeric:{ DEFAULT: '#E0A526', 600: '#C78A12', 700: '#9C6A0A', 800: '#855A08' },
         kumkum:  { DEFAULT: '#9E1B32', 600: '#82152A', 50: '#FBEAEC' },
-        ink:     { DEFAULT: '#1F1A3D', 700: '#2D2756', 500: '#5B557E', 300: '#A9A4C4' },
-        leaf:    { DEFAULT: '#2F7D4F', 50: '#E8F4EC' },
+        // 400 and below meet 4.5:1 on every light surface; 300 is for decoration and disabled states only
+        ink:     { DEFAULT: '#1F1A3D', 700: '#2D2756', 500: '#5B557E', 400: '#6E6890', 300: '#A9A4C4', line: '#8F89AE' },
+        leaf:    { DEFAULT: '#2F7D4F', 700: '#256B42', 50: '#E8F4EC' },
       },
       fontFamily: {
         sans: ['Poppins', 'Noto Sans Kannada', 'ui-sans-serif', 'system-ui'],

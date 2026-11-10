@@ -19,13 +19,13 @@ export default function Header() {
     <Link to={user ? '/account' : '/login'} aria-label={user ? t('acc_eyebrow') : t('login_link')}
       className={user
         ? 'flex h-8 w-8 items-center justify-center rounded-full bg-turmeric text-sm font-bold text-ink'
-        : 'rounded-full px-3 py-1 text-sm font-semibold text-turmeric hover:bg-white/10 transition'}>
+        : 'whitespace-nowrap rounded-full px-3 py-1 text-sm font-semibold text-turmeric hover:bg-white/10 transition'}>
       {user ? ((self?.name || user.name)?.trim().charAt(0).toUpperCase() || '👤') : t('login_link')}
     </Link>
   )
   const toggle = (
     <button onClick={() => setLang(lang === 'en' ? 'kn' : 'en')}
-      className="rounded-full border border-white/25 px-3 py-1 text-sm font-semibold text-cream hover:bg-white/10 transition"
+      className="whitespace-nowrap rounded-full border border-white/25 px-3 py-1 text-sm font-semibold text-cream hover:bg-white/10 transition"
       lang={lang === 'en' ? 'kn' : 'en'}>
       {t('lang_toggle')}
     </button>
@@ -35,9 +35,10 @@ export default function Header() {
     <>
       {/* extends under the phone's status bar when the page is edge-to-edge (Android app) */}
       <header className="no-print sticky top-0 z-40 bg-ink/95 backdrop-blur text-cream" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-        <div className="container mx-auto px-4 h-14 flex items-center justify-between gap-4">
-          <Link to="/" className="flex items-center gap-2 font-display text-lg font-bold">
-            <span className="text-turmeric" aria-hidden>✺</span>{t('brand')}
+        <div className="container mx-auto px-4 min-h-14 py-2 flex items-center justify-between gap-3">
+          {/* with a large phone font the name may shorten ("AIAstro…"); words never break letter by letter */}
+          <Link to="/" className="flex min-w-0 items-center gap-2 font-display text-lg font-bold">
+            <span className="text-turmeric" aria-hidden>✺</span><span className="truncate">{t('brand')}</span>
           </Link>
           <nav className="hidden md:flex items-center gap-1" aria-label={t('nav_main')}>
             {[...LINKS, { to: '/about', key: 'nav_about' }].map(l => (
@@ -48,7 +49,7 @@ export default function Header() {
             ))}
             <span className="ml-2 flex items-center gap-2">{account}{toggle}</span>
           </nav>
-          <div className="md:hidden flex items-center gap-2">{account}{toggle}</div>
+          <div className="md:hidden flex shrink-0 items-center gap-2">{account}{toggle}</div>
         </div>
       </header>
 

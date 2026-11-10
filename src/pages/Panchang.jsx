@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { fmtLongDate, shiftDate, todayIn } from '../lib/dates'
 import { getTimezone } from '../lib/geocode'
-import PanchangCard, { loadPanchangPlace, savePanchangPlace, usePanchang } from '../components/PanchangCard'
+import PanchangCard, { loadPanchangPlace, placeName, savePanchangPlace, usePanchang, useToday } from '../components/PanchangCard'
 import PlaceSearch from '../components/PlaceSearch'
 import { ErrorState } from '../components/LoadingOverlay'
 
@@ -12,7 +12,14 @@ export default function Panchang() {
   const [date, setDate] = useState(() => todayIn(place.tz))
   const [editing, setEditing] = useState(false)
   const { data, error, loading, reload } = usePanchang(date, place)
-  const today = todayIn(place.tz)
+  // "today" moves on at midnight and when the app comes back after a night in the background; a page
+  // showing today follows it, a day the person stepped to stays put
+  const today = useToday(place.tz)
+  const shownToday = useRef(today)
+  useEffect(() => {
+    if (date === shownToday.current) setDate(today)
+    shownToday.current = today
+  }, [today]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function onPlace(loc) {
     if (!loc) return
@@ -28,7 +35,7 @@ export default function Panchang() {
         <div>
           <h1 className="font-display text-3xl font-bold">{t('panchang_title')}</h1>
           <p className="text-ink-500">
-            📍 {place.name}{' '}
+            📍 {placeName(place, lang)}{' '}
             <button onClick={() => setEditing(e => !e)} className="text-sm font-semibold text-turmeric-700 hover:underline">{t('panchang_change_place')}</button>
           </p>
         </div>

@@ -45,7 +45,7 @@ your information for advertising.</p>
   chart (name, gender, birth date, time and place, planet positions and dasha periods), and the life details above if
   you gave them, are sent over an encrypted connection
   to our server on Cloudflare, which passes them to an AI model running on Cloudflare Workers AI and returns the answer.
-  The server does not store your questions or answers. Cloudflare briefly processes request data (including your IP
+  The server keeps each answer for at most 15 minutes, only so the app can collect it if you switched away while it was being written, and then deletes it; it keeps no other record of your questions or answers. Cloudflare briefly processes request data (including your IP
   address) to run and protect the service, under its own privacy policy.</li>
   <li><b>Place search</b>: the place name you type is sent to Photon (komoot) and OpenStreetMap Nominatim to find matching
   places.</li>
@@ -94,7 +94,7 @@ you log in with, with the subject "Delete my AIAstrology account". We delete the
 <ul>
   <li>Your login (Google name, email and user ID) in Firebase Authentication.</li>
   <li>Every kundli saved in your account (names, gender, birth dates, times and places).</li>
-  <li>AI chats are kept only on your phone; deleting in the app also erases them there. Our AI server keeps no copies.</li>
+  <li>AI chats are kept on your phone; deleting in the app also erases them there, with any life details you gave. Our AI server holds an answer for at most 15 minutes (so the app can collect it after you switch away) and keeps nothing after that.</li>
 </ul>
 <p>Nothing is kept after deletion, apart from Firebase's own backups, which expire within about 30 days.</p>
 `)

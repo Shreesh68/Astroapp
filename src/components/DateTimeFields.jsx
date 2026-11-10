@@ -124,7 +124,7 @@ export function TimeFields({ value, onChange, disabled, autoFocus }) {
             if (v.length === 2 || (v.length === 1 && n > 1)) focus(mRef)
           }} />
       </div>
-      <span className="shrink-0 pb-3 text-2xl font-semibold text-ink-300" aria-hidden>:</span>
+      <span className="shrink-0 pb-3 text-2xl font-semibold text-ink-400" aria-hidden>:</span>
       <div className="min-w-[3.25rem] max-w-[5rem] flex-1 basis-0">
         <Segment inputRef={mRef} label={t('f_minute')} placeholder="MM" maxLength={2} value={parts.m}
           disabled={disabled}

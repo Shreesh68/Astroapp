@@ -5,7 +5,7 @@ import { getChart } from '../lib/api'
 import { HOUSES, NAKSHATRAS, PLANETS, PLANET_ORDER, RASHIS, deityName, dms, nakName, pick, planetName, rashiName, reasonText } from '../lib/astro'
 import { fmtLongDate, fmtTime } from '../lib/dates'
 import { saveProfile, useProfiles } from '../lib/profiles'
-import { paramsToProfile, profileToParams } from '../lib/share'
+import { paramsToProfile, profileToParams, shortName } from '../lib/share'
 import { useAsync } from '../lib/useAsync'
 import SouthIndianChart, { planetsBySign } from '../components/SouthIndianChart'
 import DashaTimeline, { currentDasha } from '../components/DashaTimeline'
@@ -35,7 +35,7 @@ function ChartView({ profile, chart }) {
   const nak = NAKSHATRAS[moon.nakshatra_index]
   const running = currentDasha(chart.dasha)
   const saved = isSaved(profile)
-  const first = profile.name.split(' ')[0]
+  const first = shortName(profile.name)
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -48,11 +48,9 @@ function ChartView({ profile, chart }) {
         <p className="eyebrow !text-turmeric">{t('chart_of')}</p>
         <h1 className="font-display text-3xl sm:text-4xl font-bold mt-1">{profile.name}</h1>
         <p className="mt-2 text-cream/75 print:text-ink-500">
-          {t('story_born', {
-            date: fmtLongDate(profile.date, lang),
-            time: profile.timeUnknown ? t('time_unknown_short') : fmtTime(profile.time, lang),
-            place: profile.place,
-          })}
+          {profile.timeUnknown
+            ? t('story_born_notime', { date: fmtLongDate(profile.date, lang), place: profile.place })
+            : t('story_born', { date: fmtLongDate(profile.date, lang), time: fmtTime(profile.time, lang), place: profile.place })}
         </p>
         <div className="mt-6 space-y-3 text-lg leading-relaxed max-w-3xl">
           <p>{t('story_moon', { name: first, rashi: rashiName(moon.sign_index, lang), nak: nakName(moon.nakshatra_index, lang), pada: moon.pada, trait: pick(RASHIS[moon.sign_index].trait, lang) })}</p>
@@ -97,7 +95,8 @@ function ChartView({ profile, chart }) {
           <SouthIndianChart ephem={chart} lang={lang} size="lg" selected={selected} onSelect={setSelected} />
           <p className="no-print mt-3 text-center text-xs text-ink-500">{t('chart_tap')}</p>
         </div>
-        <HouseDetail chart={chart} sign={selected} />
+        {/* a live region that stays mounted, so choosing a house is announced */}
+        <div aria-live="polite"><HouseDetail chart={chart} sign={selected} /></div>
       </section>
 
       {/* Dasha */}
@@ -112,7 +111,7 @@ function ChartView({ profile, chart }) {
       {/* Table */}
       <details className="card card-pad group" open={false}>
         <summary className="section-title !mb-0 cursor-pointer list-none flex items-center justify-between">
-          {t('table_title')} <span className="text-ink-300 transition group-open:rotate-180" aria-hidden>▾</span>
+          {t('table_title')} <span className="text-ink-400 transition group-open:rotate-180" aria-hidden>▾</span>
         </summary>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-sm">
@@ -146,7 +145,7 @@ function ChartView({ profile, chart }) {
         <Link to={`/matchmaking?${profileToParams(profile, 'w')}`} className="btn-primary">❦ {t('act_match', { name: first })}</Link>
       </ShareBar>
 
-      <p className="text-center text-xs text-ink-300">{t('footnote')} · {chart.ayanamsa_degree.toFixed(4)}°</p>
+      <p className="text-center text-xs text-ink-400">{t('footnote')} · {chart.ayanamsa_degree.toFixed(4)}°</p>
     </div>
   )
 }
@@ -158,7 +157,7 @@ function HouseDetail({ chart, sign }) {
   const isLagna = sign === chart.ascendant.sign_index
 
   return (
-    <div key={sign} className="animate-rise md:pt-10" aria-live="polite">
+    <div key={sign} className="animate-rise md:pt-10">
       <p className="eyebrow">{t('house_n', { n: house })}{isLagna ? ` · ${t('key_lagna')}` : ''}</p>
       <h3 className="font-display text-2xl font-semibold mt-1">
         {rashiName(sign, lang)} {lang !== 'kn' && <span className="text-base font-normal text-ink-500">({RASHIS[sign].west})</span>}
@@ -191,7 +190,7 @@ function ManglikCard({ manglik: m }) {
   const chip = { none: 'chip-good', cancelled: 'chip-good', mild: 'chip-warn', moderate: 'chip-bad', strong: 'chip-bad' }[m.strength]
 
   function status(r) {
-    if (r.skipped) return { text: t('kuja_row_skipped'), tone: 'text-ink-300' }
+    if (r.skipped) return { text: t('kuja_row_skipped'), tone: 'text-ink-400' }
     if (r.active) return { text: t('kuja_row_active'), tone: 'text-kumkum font-semibold' }
     if (r.dosha_house) return { text: t('kuja_row_exempt', { reason: reasonText(r.cancelled_reason, lang) }), tone: 'text-leaf' }
     return { text: t('kuja_row_clear'), tone: 'text-ink-500' }
@@ -216,7 +215,7 @@ function ManglikCard({ manglik: m }) {
           )
         })}
       </ul>
-      <p className="mt-3 text-xs text-ink-300">{t('kuja_note')}</p>
+      <p className="mt-3 text-xs text-ink-400">{t('kuja_note')}</p>
     </section>
   )
 }

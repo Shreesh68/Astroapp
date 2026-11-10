@@ -69,3 +69,13 @@ export async function shareLink({ title, text, url = publicUrl() }) {
 
 export const whatsappUrl = (text, url = publicUrl()) =>
   `https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`
+
+/**
+ * The name to address someone by: their given name, but never just initials — for "K.S. Ramesh" or
+ * "B Ramesh" that is "Ramesh"; a name that is only initials is used whole.
+ */
+export function shortName(full = '') {
+  const words = String(full).trim().split(/\s+/).filter(Boolean)
+  const initial = w => w.includes('.') || (/^[A-Za-z]{1,2}$/.test(w) && w === w.toUpperCase())
+  return words.find(w => !initial(w)) || String(full).trim()
+}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { createContext, useContext, useId, useState } from 'react'
 import { DateTime } from 'luxon'
 import PlaceSearch from './PlaceSearch'
 import { DateFields, TimeFields } from './DateTimeFields'
@@ -21,6 +21,9 @@ const EMPTY = { name: '', gender: '', date: '', time: '', timeUnknown: false, pl
  *   other: the person already chosen for the other side of a match (never offered again)
  *   onSubmit(profile, { save })
  */
+// the id of the current step's question, shared with the Question heading
+const QuestionId = createContext({ qid: undefined })
+
 export default function BirthWizard({ role = 'chart', initial = null, initialName = '', onSubmit, other = null }) {
   const { t, lang } = useLanguage()
   const { profiles } = useProfiles()
@@ -36,6 +39,8 @@ export default function BirthWizard({ role = 'chart', initial = null, initialNam
 
   const name = data.name.trim() || '…'
   const stepIndex = STEPS_FOR.indexOf(step)
+  // each step's question names its field(s) for screen readers
+  const qid = `${useId()}-q`
   const set = patch => { setData(d => ({ ...d, ...patch })); setError('') }
 
   function validate(s) {
@@ -87,13 +92,15 @@ export default function BirthWizard({ role = 'chart', initial = null, initialNam
   return (
     <form onSubmit={next} className="card card-pad sm:p-8" noValidate>
       {step !== 'pick' && (
-        <div className="flex items-center gap-3 mb-6" aria-label={t('wiz_step', { n: stepIndex + 1, total: STEPS_FOR.length })}>
+        <div className="flex items-center gap-3 mb-6">
+          <p className="sr-only">{t('wiz_step', { n: stepIndex + 1, total: STEPS_FOR.length })}</p>
           {STEPS_FOR.map((s, i) => (
-            <span key={s} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${i <= stepIndex ? 'bg-turmeric' : 'bg-cream-200'}`} />
+            <span key={s} aria-hidden className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${i <= stepIndex ? 'bg-turmeric' : 'bg-cream-200'}`} />
           ))}
         </div>
       )}
 
+      <QuestionId.Provider value={{ qid }}>
       <div key={step} className="animate-rise min-h-[13rem]">
         {step === 'pick' && (
           <>
@@ -122,7 +129,7 @@ export default function BirthWizard({ role = 'chart', initial = null, initialNam
         {step === 'name' && (
           <>
             <Question>{nameTitle}</Question>
-            <input className="input text-lg" autoFocus value={data.name} placeholder={t('wiz_name_ph')}
+            <input className="input text-lg" autoFocus value={data.name} placeholder={t('wiz_name_ph')} aria-labelledby={qid}
               onChange={e => set({ name: e.target.value })} autoComplete="name" />
           </>
         )}
@@ -144,7 +151,7 @@ export default function BirthWizard({ role = 'chart', initial = null, initialNam
         {step === 'date' && (
           <>
             <Question>{t('wiz_date_title', { name })}</Question>
-            <DateFields autoFocus value={data.date} onChange={date => set({ date })} />
+            <div role="group" aria-labelledby={qid}><DateFields autoFocus value={data.date} onChange={date => set({ date })} /></div>
             {data.date && !validate('date') && (
               <p className="mt-3 text-ink-500 animate-rise">✓ {fmtLongDate(data.date, lang)}</p>
             )}
@@ -154,7 +161,7 @@ export default function BirthWizard({ role = 'chart', initial = null, initialNam
         {step === 'time' && (
           <>
             <Question>{t('wiz_time_title')}</Question>
-            <TimeFields autoFocus value={data.time} disabled={data.timeUnknown} onChange={time => set({ time })} />
+            <div role="group" aria-labelledby={qid}><TimeFields autoFocus value={data.time} disabled={data.timeUnknown} onChange={time => set({ time })} /></div>
             <p className="mt-2 text-sm text-ink-500">{t('wiz_time_hint')}</p>
             <label className="mt-4 flex items-start gap-3 cursor-pointer select-none rounded-xl bg-cream px-4 py-3">
               <input type="checkbox" className="mt-1 accent-kumkum h-4 w-4" checked={data.timeUnknown}
@@ -170,7 +177,7 @@ export default function BirthWizard({ role = 'chart', initial = null, initialNam
         {step === 'place' && (
           <>
             <Question>{t('wiz_place_title', { name })}</Question>
-            <PlaceSearch autoFocus onLocationSelect={onPlace}
+            <PlaceSearch autoFocus onLocationSelect={onPlace} labelledBy={qid}
               value={data.lat != null ? { lat: data.lat, lon: data.lon, name: data.place, display_name: data.display_name || data.place } : null} />
             <p className="mt-2 text-sm text-ink-500">{t('wiz_place_hint')}</p>
           </>
@@ -188,8 +195,12 @@ export default function BirthWizard({ role = 'chart', initial = null, initialNam
                 ['place', data.place],
               ].map(([s, v]) => (
                 <li key={s} className="flex items-center justify-between gap-3 px-4 py-3">
-                  <span className="font-medium min-w-0 truncate">{v}</span>
-                  <button type="button" onClick={() => setStep(s)} className="text-sm text-turmeric-700 font-semibold hover:underline shrink-0">
+                  <span className="min-w-0">
+                    <span className="block text-xs text-ink-500">{t(`ai_f_${s}`)}</span>
+                    <span className="block font-medium truncate">{v}</span>
+                  </span>
+                  <button type="button" onClick={() => setStep(s)} aria-label={`${t('wiz_edit')} ${t(`ai_f_${s}`)}`}
+                    className="-my-2 min-h-11 px-2 text-sm text-turmeric-800 font-semibold hover:underline shrink-0">
                     {t('wiz_edit')}
                   </button>
                 </li>
@@ -206,6 +217,7 @@ export default function BirthWizard({ role = 'chart', initial = null, initialNam
 
         {error && <p role="alert" className="mt-3 text-sm font-medium text-kumkum animate-rise">{error}</p>}
       </div>
+      </QuestionId.Provider>
 
       {step !== 'pick' && (
         <div className="mt-8 flex items-center justify-between gap-3">
@@ -222,7 +234,8 @@ export default function BirthWizard({ role = 'chart', initial = null, initialNam
 }
 
 function Question({ children }) {
-  return <h2 className="font-display text-2xl sm:text-3xl font-semibold text-ink mb-5 leading-snug">{children}</h2>
+  const { qid } = useContext(QuestionId)
+  return <h2 id={qid} className="font-display text-2xl sm:text-3xl font-semibold text-ink mb-5 leading-snug">{children}</h2>
 }
 
 export function Avatar({ name, className = '' }) {

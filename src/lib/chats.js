@@ -8,7 +8,7 @@ import { DateTime } from 'luxon'
 import { askAstrologer } from './astrologer'
 
 // the server accepts a bounded conversation; an odd count keeps the history starting with a question
-const HISTORY_TURNS = 39
+const HISTORY_TURNS = 15
 const CHANGED = 'km-chat-changed'
 export const REPLIED = 'km-chat-replied'
 

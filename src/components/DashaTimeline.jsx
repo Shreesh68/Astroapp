@@ -8,6 +8,9 @@ export const DASHA_COLORS = {
   venus: '#C2577E', saturn: '#2D2756', rahu: '#5B557E', ketu: '#8B6B4E',
 }
 
+// bars light enough that white labels on them can't be read
+const LIGHT_BARS = ['sun', 'moon', 'jupiter']
+
 const ms = iso => Date.parse(iso)
 
 /** The mahadasha and antardasha running at `when` (default now) */
@@ -60,7 +63,7 @@ export default function DashaTimeline({ dasha, tz }) {
                 aria-label={`${planetName(p.lord, lang)} ${fmtMonthYear(p.start, tz, lang)} – ${fmtMonthYear(p.end, tz, lang)}`}
                 className={`relative h-full border-r border-white/60 last:border-0 transition-[filter,transform] hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white ${isOpen ? 'brightness-110' : open ? 'opacity-60' : ''}`}
                 style={{ width: `${w}%`, background: DASHA_COLORS[p.lord] }}>
-                {w > 5 && <span className="text-[11px] font-bold text-white drop-shadow">{PLANETS[p.lord].short[lang === 'kn' ? 'kn' : 'en']}</span>}
+                {w > 5 && <span className={`text-[11px] font-bold ${LIGHT_BARS.includes(p.lord) ? 'text-ink' : 'text-white drop-shadow'}`}>{PLANETS[p.lord].short[lang === 'kn' ? 'kn' : 'en']}</span>}
               </button>
             )
           })}
