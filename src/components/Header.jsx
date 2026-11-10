@@ -2,10 +2,13 @@ import { NavLink, Link } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import { accountsAvailable, useAccount } from '../lib/account'
 import { useProfiles } from '../lib/profiles'
+import { astrologerAvailable } from '../lib/astrologer'
 
+// the AI astrologer, what the app is named for, sits in the middle
 const LINKS = [
   { to: '/', key: 'nav_home', icon: '⌂', end: true },
   { to: '/birth-chart', key: 'nav_chart', icon: '◈' },
+  ...(astrologerAvailable ? [{ to: '/ask', key: 'nav_ai', icon: '✺', ai: true }] : []),
   { to: '/matchmaking', key: 'nav_match', icon: '❦' },
   { to: '/panchang', key: 'nav_panchang', icon: '☼' },
 ]
@@ -56,11 +59,11 @@ export default function Header() {
       {/* Bottom tab bar on phones */}
       <nav aria-label={t('nav_main')} className="no-print bottom-tabs md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-cream-200"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        <div className="grid grid-cols-4">
+        <div className="grid" style={{ gridTemplateColumns: `repeat(${LINKS.length}, minmax(0, 1fr))` }}>
           {LINKS.map(l => (
             <NavLink key={l.to} to={l.to} end={l.end}
               className={({ isActive }) => `flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${isActive ? 'text-kumkum' : 'text-ink-500'}`}>
-              <span className="text-lg leading-none" aria-hidden>{l.icon}</span>
+              <span className={`leading-none ${l.ai ? 'flex h-7 w-7 items-center justify-center rounded-full bg-turmeric text-base text-ink' : 'text-lg'}`} aria-hidden>{l.icon}</span>
               {t(l.key)}
             </NavLink>
           ))}

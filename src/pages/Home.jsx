@@ -4,8 +4,8 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { removeProfile, useProfiles } from '../lib/profiles'
 import { accountsAvailable, useAccount } from '../lib/account'
 import { chartPath, profileToParams } from '../lib/share'
-import { fmtLongDate } from '../lib/dates'
-import PanchangCard, { loadPanchangPlace, placeName, usePanchang, useToday } from '../components/PanchangCard'
+import { fmtClock, fmtLongDate, fmtShortDate } from '../lib/dates'
+import PanchangCard, { loadPanchangPlace, placeName, useMinuteTick, usePanchang, useToday } from '../components/PanchangCard'
 import { Avatar } from '../components/BirthWizard'
 import { astrologerAvailable } from '../lib/astrologer'
 
@@ -20,6 +20,7 @@ export default function Home(){
 
   return (
     <div className="space-y-8">
+      {panchang.data && <TodayStrip data={panchang.data} place={place} />}
       <section className="hero-gradient stars relative overflow-hidden rounded-3xl px-6 py-12 sm:px-12 sm:py-16 text-cream animate-rise">
         <div aria-hidden className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-turmeric/20 blur-3xl" />
         <p className="eyebrow !text-turmeric">{t('home_eyebrow')}</p>
@@ -32,17 +33,6 @@ export default function Home(){
           <Link to="/matchmaking" className="btn border border-white/30 text-cream hover:bg-white/10">{t('home_cta_match')}</Link>
         </div>
       </section>
-
-      {astrologerAvailable && (
-        <Link to="/ask" className="card group flex items-center gap-4 px-5 py-4 animate-rise [animation-delay:40ms] hover:border-turmeric transition">
-          <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-ink text-2xl text-turmeric">✺</span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-display text-lg font-semibold">{t('ai_cta_title')}</span>
-            <span className="block text-sm text-ink-500">{t('ai_cta_sub')}</span>
-          </span>
-          <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-kumkum text-xl text-white transition group-hover:translate-x-1">→</span>
-        </Link>
-      )}
 
       {accountsAvailable && ready && (user && self ? (
         <Link to={chartPath(self)} className="card flex items-center gap-4 px-5 py-4 animate-rise hover:border-turmeric transition">
@@ -99,9 +89,10 @@ export default function Home(){
                     <Avatar name={p.name} />
                     <Link to={chartPath(p)} className="min-w-0 flex-1 group">
                       <span className="block font-semibold truncate group-hover:text-kumkum">{p.name}</span>
-                      <span className="block text-xs text-ink-500 truncate">{p.date} · {p.place}</span>
+                      <span className="block text-xs text-ink-500 truncate">{fmtShortDate(p.date, lang)} · {p.place}</span>
                     </Link>
-                    <Link to={`/matchmaking?${profileToParams(p, 'w')}`} className="text-xs font-semibold text-turmeric-700 hover:underline">{t('match_with')}</Link>
+                    <Link to={`/matchmaking?${profileToParams(p, 'w')}`} aria-label={`${t('match_with')}: ${p.name}`}
+                      className="-my-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg text-turmeric-800 hover:bg-cream">❦</Link>
                     <button onClick={() => setConfirming(p.id)} className="-my-2 -mr-2 flex h-11 w-11 shrink-0 items-center justify-center text-xl leading-none text-ink-400 hover:text-kumkum" aria-label={`${t('home_remove')} ${p.name}`}>×</button>
                   </div>
                 )}
@@ -111,5 +102,37 @@ export default function Home(){
         </section>
       </div>
     </div>
+  )
+}
+
+/**
+ * The daily check, first: today's festival, Rahu kala (now / in how long / over) and the place it is
+ * for, with a way to change it.
+ */
+function TodayStrip({ data, place }) {
+  const { t, lang } = useLanguage()
+  useMinuteTick()
+  const now = Date.now()
+  const start = Date.parse(data.rahu_kala.start), end = Date.parse(data.rahu_kala.end)
+  const mins = Math.round((start - now) / 60000)
+  const status = now >= start && now < end ? t('today_now')
+    : now < start ? t('today_in', { t: mins >= 60 ? t('dur_hm', { h: Math.floor(mins / 60), m: mins % 60 }) : t('dur_m', { m: mins }) })
+      : t('today_over')
+  const live = now >= start && now < end
+  return (
+    <section className="card px-4 py-3 animate-rise" aria-label={t('today_title')}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <p className="font-semibold">{t('today_title')} · {placeName(place, lang)}</p>
+        <Link to="/panchang" className="text-sm font-semibold text-turmeric-800 hover:underline">{t('panchang_change_place')} →</Link>
+      </div>
+      {data.festivals?.length > 0 && (
+        <p className="mt-1 text-sm font-semibold text-turmeric-800">🪔 {data.festivals.map(f => t(`fest_${f}`)).join(' · ')}</p>
+      )}
+      <p className={`mt-1 flex flex-wrap items-center gap-x-2 text-sm ${live ? 'text-kumkum' : 'text-ink-700'}`}>
+        <span className="font-medium">{t('p_rahu')}</span>
+        <span className="tabular-nums">{fmtClock(data.rahu_kala.start, lang)} – {fmtClock(data.rahu_kala.end, lang)}</span>
+        <span className={live ? 'chip-bad' : 'text-ink-500'}>{status}</span>
+      </p>
+    </section>
   )
 }

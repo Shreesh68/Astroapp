@@ -8,8 +8,9 @@ export const fmtLongDate = (date, lang) => (lang === 'kn'
   ? DateTime.fromISO(date).setLocale('kn').toFormat('cccc, d MMMM yyyy')
   : DateTime.fromISO(date).setLocale(locale(lang)).toLocaleString({ weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))
 
-export const fmtShortDate = (date, lang) =>
-  DateTime.fromISO(date).setLocale(locale(lang)).toLocaleString({ day: 'numeric', month: 'short', year: 'numeric' })
+export const fmtShortDate = (date, lang) => (lang === 'kn'
+  ? DateTime.fromISO(date).setLocale('kn').toFormat('d MMM yyyy') // day first, as in Karnataka
+  : DateTime.fromISO(date).setLocale(locale(lang)).toLocaleString({ day: 'numeric', month: 'short', year: 'numeric' }))
 
 export const weekdayOf = (date, lang) => {
   const dt = DateTime.fromISO(date)

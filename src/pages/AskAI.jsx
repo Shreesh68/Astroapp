@@ -200,7 +200,8 @@ function Intake() {
     setData(d)
     add({ from: 'me', text: p.name })
     if (!p.gender) { setStep('gender'); setReturnTo('confirm'); add(question('gender', d)) }
-    else { setStep('confirm'); add(confirm(d)) }
+    // already saved and complete: no second confirmation, straight to the chat about their chart
+    else navigate(`/ask?${profileToParams(p)}`, { replace: true })
   }
 
   function draw() {
@@ -305,6 +306,7 @@ function ChartChat({ profile }) {
   // the conversation lives in lib/chats, so an answer keeps coming even if this screen is closed
   const { messages, pending } = useChat(key)
   const [draft, setDraft] = useState('')
+  const [clearing, setClearing] = useState(false) // asking before the conversation is deleted
   const first = shortName(profile.name)
 
   useEffect(() => { getChart(profile).then(setChart, () => setChart(false)) }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -328,7 +330,7 @@ function ChartChat({ profile }) {
     <>
       {messages.length === 0 && !pending && (
         <div className="flex gap-2 overflow-x-auto pb-2">
-          {['ask_s1', 'ask_s2', 'ask_s3', 'ask_s4'].map(k => (
+          {['ask_s1', 'ask_s2', 'ask_s5', 'ask_s3', 'ask_s4'].map(k => (
             <button key={k} type="button" onClick={() => send(t(k))}
               className="shrink-0 rounded-full border border-cream-200 bg-white px-3 py-1.5 text-sm text-ink-700 shadow-sm">{t(k)}</button>
           ))}
@@ -349,7 +351,7 @@ function ChartChat({ profile }) {
     <>
       <Link to={chartPath(profile)} className="rounded-full px-3 py-1.5 text-xs font-semibold text-cream/90 ring-1 ring-white/25 hover:bg-white/10">{t('ai_open_chart')}</Link>
       {messages.length > 0 && !pending && (
-        <button type="button" onClick={() => clearChat(profile)} aria-label={t('ask_clear')}
+        <button type="button" onClick={() => setClearing(true)} aria-label={t('ask_clear')}
           className="rounded-full p-2 text-lg leading-none hover:bg-white/10">⟲</button>
       )}
     </>
@@ -374,6 +376,15 @@ function ChartChat({ profile }) {
       {pending && (pending.text
         ? <Bubble from="bot"><AnswerWithDetails text={pending.text} writing detailsLabel={t('ask_details_coming')} />{status && <p className="text-sm text-ink-500 animate-pulse">{status}</p>}</Bubble>
         : <Typing label={status} />)}
+      {clearing && (
+        <div role="alertdialog" aria-label={t('ask_clear_q')} className="mx-auto max-w-xs rounded-lg bg-white px-3 py-3 text-center text-sm shadow">
+          <p>{t('ask_clear_q')}</p>
+          <div className="mt-2 flex justify-center gap-2">
+            <button type="button" onClick={() => { clearChat(profile); setClearing(false) }} className="chip-bad min-h-11 px-4">{t('ask_clear_yes')}</button>
+            <button type="button" onClick={() => setClearing(false)} className="chip min-h-11 bg-cream px-4 text-ink-700">{t('cancel')}</button>
+          </div>
+        </div>
+      )}
       {failed && (
         <div role="alert" className="mx-auto max-w-xs rounded-lg bg-kumkum-50 px-3 py-2 text-center text-sm text-kumkum">
           <p>! {ERRORS.includes(failed.error) ? t(`ask_err_${failed.error}`) : t('ask_err_failed')}</p>

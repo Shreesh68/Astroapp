@@ -30,8 +30,10 @@ function write(list) {
   window.dispatchEvent(new Event(EVENT))
 }
 
+// places compared to 4 decimals (~10 m): links carry them rounded, saved people keep the full value
+const samePlace = (x, y) => (+x).toFixed(4) === (+y).toFixed(4)
 export const sameBirth = (a, b) =>
-  a.name === b.name && a.date === b.date && a.time === b.time && a.lat === b.lat && a.lon === b.lon
+  a.name === b.name && a.date === b.date && a.time === b.time && samePlace(a.lat, b.lat) && samePlace(a.lon, b.lon)
 
 export function saveProfile(profile) {
   const list = read()

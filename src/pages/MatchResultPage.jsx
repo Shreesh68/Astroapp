@@ -168,7 +168,7 @@ function MatchView({ groom, bride, data }) {
         </div>
       </section>
 
-      <ShareBar title={t('match_title')} text={t('share_text_match', { groom: groom.name, bride: bride.name, score: m.total })} />
+      <ShareBar title={t('match_title')} text={t('share_text_match', { groom: groom.name, bride: bride.name, score: m.total, verdict: pick(verdict, lang) })} />
     </div>
   )
 }

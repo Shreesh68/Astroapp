@@ -46,7 +46,7 @@ export function useToday(tz) {
 }
 
 /** Re-render every minute (keeps "happening now" markers current). */
-function useMinuteTick() {
+export function useMinuteTick() {
   const [, setTick] = useState(0)
   useEffect(() => {
     const id = setInterval(() => setTick(n => n + 1), 60_000)
@@ -197,6 +197,25 @@ export default function PanchangCard({ data, compact = false }) {
         </ul>
       )}
 
+      {/* what people check every day comes first */}
+      <div className="mb-4">
+        {!compact && <h3 className="text-sm font-semibold text-ink-700 mb-2">{t('p_inauspicious')}</h3>}
+        <ul className={`grid grid-cols-1 gap-2 ${compact ? '' : 'sm:grid-cols-3'}`}>
+          {shownBad.map(b => {
+            const now = isNow(b)
+            return (
+              <li key={b.label} className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 rounded-xl px-4 py-2.5 text-sm ${now ? 'bg-kumkum-50 ring-1 ring-kumkum' : 'bg-white ring-1 ring-cream-200'}`}>
+                <span className="font-medium">{b.label}</span>
+                <span className="text-ink-700 tabular-nums whitespace-nowrap">
+                  {fmtClock(b.start, lang)} – {fmtClock(b.end, lang)}
+                  {now && <span className="ml-2 chip-bad">{t('p_now')}</span>}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+
       <dl className="mb-4 flex flex-wrap gap-x-5 gap-y-2 rounded-xl border border-cream-200 px-4 py-3 text-sm">
         {year.map(y => (
           <div key={y.label} className="flex items-baseline gap-1.5">
@@ -218,23 +237,6 @@ export default function PanchangCard({ data, compact = false }) {
 
       {!compact && <p className="mt-2 text-xs text-ink-400">{t('p_amanta')}</p>}
 
-      <div className="mt-4">
-        {!compact && <h3 className="text-sm font-semibold text-ink-700 mb-2">{t('p_inauspicious')}</h3>}
-        <ul className={`grid grid-cols-1 gap-2 ${compact ? '' : 'sm:grid-cols-3'}`}>
-          {shownBad.map(b => {
-            const now = isNow(b)
-            return (
-              <li key={b.label} className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 rounded-xl px-4 py-2.5 text-sm ${now ? 'bg-kumkum-50 ring-1 ring-kumkum' : 'bg-white ring-1 ring-cream-200'}`}>
-                <span className="font-medium">{b.label}</span>
-                <span className="text-ink-700 tabular-nums whitespace-nowrap">
-                  {fmtClock(b.start, lang)} – {fmtClock(b.end, lang)}
-                  {now && <span className="ml-2 chip-bad">{t('p_now')}</span>}
-                </span>
-              </li>
-            )
-          })}
-        </ul>
-      </div>
     </div>
   )
 }

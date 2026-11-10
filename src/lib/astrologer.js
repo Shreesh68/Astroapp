@@ -5,7 +5,10 @@ import { DateTime } from 'luxon'
 import { chartFor, computeMatch } from '../engine'
 import { RASHI_LORD } from '../engine/constants'
 import { runTool, saturnFromMoon } from '../engine/tools'
-import { analyseChart, dashaFocus, isDashaQuestion, topicFocus, topicOf } from '../engine/analysis'
+import { analyseChart, dashaFocus, isDashaQuestion, isMuhurtaQuestion, muhurtaFocus, topicFocus, topicOf } from '../engine/analysis'
+import { computePanchang } from '../engine/panchang'
+import { jdFromMillis, siderealLongitude } from '../engine/ephemeris'
+import { loadPanchangPlace } from '../components/PanchangCard'
 import { ApiError, toPayload } from './api'
 import { findPlace } from './places'
 import { readProfiles, samePerson } from './profiles'
@@ -259,20 +262,28 @@ export async function askAstrologer({ profile, messages, lang, signal, onEvent }
   // the newest question gets a short exact fact sheet for its topic, so the model quotes rather than computes
   const last = convo.length - 1
   const question = messages[messages.length - 1].content
-  const topic = topicOf(question)
+  // "a good day to open my shop?" gets the app's own list of good days, not a life-area reading
+  const muhurta = isMuhurtaQuestion(question)
+  const topic = muhurta ? null : topicOf(question)
   // everything the model is given, so its final answer can be checked against it
   const context = [convo[0].content]
   // a life area gets its own sheet (with its periods); a question only about the dasha gets the dasha sheet
-  const dasha = !topic && isDashaQuestion(question)
+  const dasha = !topic && !muhurta && isDashaQuestion(question)
   // the extra sheets help the answer, but a problem preparing one must never stop the question being answered
   const safely = (what, fn, fallback) => { try { return fn() } catch (err) { console.warn(`${what} skipped:`, err); return fallback } }
-  const focus = (topic || dasha) && safely('focus sheet', () => (topic ? topicFocus(birth, natal, today, topic) : dashaFocus(birth, natal, today)), null)
+  const focus = muhurta
+    ? safely('good days', () => {
+      const place = loadPanchangPlace() // the place the person keeps their Panchang for
+      return muhurtaFocus(birth, natal, today, date => computePanchang(date, place.lat, place.lon, place.tz),
+        iso => Math.floor(siderealLongitude(jdFromMillis(Date.parse(iso)), 'moon') / 30), place.name)
+    }, null)
+    : (topic || dasha) && safely('focus sheet', () => (topic ? topicFocus(birth, natal, today, topic) : dashaFocus(birth, natal, today)), null)
   if (focus?.length) {
     convo[last] = { ...convo[last], content: `${convo[last].content}\n\n${focus.join('\n')}` }
     context.push(focus.join('\n'))
   } else if (!/sade|sati|shani|saturn|jupiter|guru|rahu|ketu|transit|panchang|muhurt|ಸಾಡೇ|ಶನಿ|ಗುರು|ರಾಹು|ಕೇತು|ಗೋಚಾರ|ಪಂಚಾಂಗ|ಮುಹೂರ್ತ/i.test(question)) {
     // a general question (not about one planet or transit either): overview, then ask which area
-    convo[last] = { ...convo[last], content: `${convo[last].content}\n\n[No specific area of life is named: give a short overview from the analysis and the coming periods, then end by asking which area — career, marriage, money, health, studies — they would like to look at in detail.]` }
+    convo[last] = { ...convo[last], content: `${convo[last].content}\n\n[No specific area of life is named: give a short overview from the analysis and the coming periods, and finish the opening (before any heading) by asking which area — career, marriage, money, health, studies — they would like to look at in detail.]` }
   }
 
   let wroteText = false

@@ -3,12 +3,14 @@ import { translate } from '../lib/i18n'
 
 const LanguageContext = createContext({ lang: 'en', setLang: () => {}, t: k => k })
 
+// the person's own choice, once made; on first launch, Kannada when the phone itself is set to Kannada
 function initialLang() {
   try {
-    return localStorage.getItem('karnataka_lang') === 'kn' ? 'kn' : 'en'
-  } catch {
-    return 'en'
-  }
+    const chosen = localStorage.getItem('karnataka_lang')
+    if (chosen) return chosen === 'kn' ? 'kn' : 'en'
+  } catch { /* storage unavailable */ }
+  const phone = typeof navigator !== 'undefined' ? [navigator.language, ...(navigator.languages || [])] : []
+  return phone.some(l => /^kn\b/i.test(l || '')) ? 'kn' : 'en'
 }
 
 export function LanguageProvider({ children }){

@@ -433,3 +433,53 @@ export function dashaFocus(birth, chart, today) {
   }
   return lines
 }
+
+// ── Good days to begin something (muhurta) ─────────────────────────────────
+
+const MUHURTA_WORDS = /\b(good|auspicious|right|best|lucky) (day|date|time|muhurt\w*)|\bmuhurt\w*|\b(open|start|begin|launch|inaugurat\w*)\w* (a |my |the |our |new |second )*(shop|store|business|office|company|venture|clinic|house|home)|griha ?pravesh\w*|house[- ]?warming|ಮುಹೂರ್ತ|ಶುಭ ದಿನ|ಒಳ್ಳೆಯ ದಿನ|ಶುಭ ಸಮಯ|ಗೃಹಪ್ರವೇಶ|ಅಂಗಡಿ ಆರಂಭ|ಆರಂಭಿಸಲು/i
+
+/** A question asking for a good day or time to begin something. */
+export const isMuhurtaQuestion = question => MUHURTA_WORDS.test(question)
+
+// Traditional choices for beginnings (opening a shop, starting work, moving in), kept simple and explainable:
+// nakshatras of the fixed, gentle, swift and movable kinds; tithis other than the Rikta (4, 9, 14) and
+// Amavasya; Tuesday and Saturday avoided. For the person: no Vipat/Pratyari/Vadha tara from their birth
+// star, and no Chandrashtama (the Moon in the 8th sign from their natal Moon).
+const GOOD_NAKSHATRAS = [0, 3, 4, 6, 7, 11, 12, 13, 14, 16, 20, 21, 22, 23, 25, 26]
+const RIKTA_OR_AMAVASYA = [3, 8, 13, 18, 23, 28, 29]
+const GOOD_TITHI_IN_PAKSHA = [1, 2, 4, 6, 9, 10, 12] // Dwitiya, Tritiya, Panchami, Saptami, Dashami, Ekadashi, Trayodashi
+const BAD_TARA = { 3: 'Vipat', 5: 'Pratyari', 7: 'Vadha' }
+const WEEKDAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+/**
+ * The best days in the coming weeks to begin something, scored by the app from each day's Panchang
+ * at the place (tithi, nakshatra and weekday at sunrise) and the person's own birth star.
+ * panchangFor(date) → computePanchang result; moonSignAt(iso) → the Moon's sidereal sign then.
+ */
+export function muhurtaFocus(birth, chart, today, panchangFor, moonSignAt, place, days = 45) {
+  const birthNak = chart.planets.moon.nakshatra_index
+  const natalMoonSign = chart.planets.moon.sign_index
+  const picks = []
+  for (let i = 1; i <= days; i++) {
+    const date = DateTime.fromISO(today).plus({ days: i }).toISODate()
+    const p = panchangFor(date)
+    const tithi = p.tithi.index, nak = p.nakshatra.index, wd = p.vara.index
+    if (RIKTA_OR_AMAVASYA.includes(tithi) || wd === 2 || wd === 6 || !GOOD_NAKSHATRAS.includes(nak)) continue
+    const tara = ((mod(nak - birthNak, 27)) % 9) + 1
+    if (BAD_TARA[tara]) continue
+    if (mod(moonSignAt(p.sunrise) - natalMoonSign, 12) + 1 === 8) continue
+    const shukla = tithi < 15
+    const score = 2 + (GOOD_TITHI_IN_PAKSHA.includes(tithi % 15) ? (shukla ? 2 : 1) : 0) + ([1, 3, 4, 5].includes(wd) ? 1 : 0) + ([2, 4, 6, 8].includes(tara) ? 1 : 0)
+    picks.push({ date, score, p, tara })
+  }
+  const best = picks.sort((a, b) => b.score - a.score || (a.date < b.date ? -1 : 1)).slice(0, 5)
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+  const clock = iso => DateTime.fromISO(iso, { setZone: true }).toFormat('h:mm a').toLowerCase()
+  const lines = [`GOOD DAYS TO BEGIN — chosen by the app for the next ${days} days at ${place} (tithi, nakshatra and weekday at sunrise, plus the person's birth star; quote these, do not choose other days):`]
+  if (!best.length) lines.push('  none in this span pass every rule — say so, and suggest asking the family priest.')
+  for (const b of best) {
+    lines.push(`  ${DateTime.fromISO(b.date).toFormat('d LLL yyyy')} (${WEEKDAY[b.p.vara.index]}): ${b.p.tithi.paksha} ${b.p.tithi.name}, ${b.p.nakshatra.name} nakshatra; good tara for the person; avoid Rahu kala ${clock(b.p.rahu_kala.start)}–${clock(b.p.rahu_kala.end)}${b.score >= 6 ? ' — among the best' : ''}`)
+  }
+  lines.push('  Left out: Rikta tithis (Chaturthi, Navami, Chaturdashi) and Amavasya, Tuesdays and Saturdays, days with a Vipat/Pratyari/Vadha tara from the birth star, and Chandrashtama days. The exact muhurta (hour) is best fixed with the family priest.')
+  return lines
+}

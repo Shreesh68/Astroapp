@@ -76,7 +76,14 @@ export default function BirthWizard({ role = 'chart', initial = null, initialNam
   }
 
   function pickProfile(p) {
-    setData({ ...EMPTY, ...p })
+    const d = { ...EMPTY, ...p }
+    // a saved person with everything filled in needs no second confirmation
+    const complete = d.name.trim() && d.date && (d.timeUnknown || d.time) && d.lat != null && d.tz && (roleGender || d.gender || role !== 'chart')
+    if (complete) {
+      onSubmit({ ...d, gender: roleGender || d.gender, name: d.name.trim(), time: d.timeUnknown ? '12:00' : d.time }, { save: false })
+      return
+    }
+    setData(d)
     setSave(false)
     setStep('review')
   }
@@ -84,6 +91,8 @@ export default function BirthWizard({ role = 'chart', initial = null, initialNam
   function onPlace(loc) {
     if (!loc) return set({ place: '', lat: null, lon: null, tz: null })
     set({ place: loc.name, lat: loc.lat, lon: loc.lon, tz: getTimezone(loc.lat, loc.lon), display_name: loc.display_name })
+    // picking the place is the answer: go on to the review without another "Continue"
+    if (step === 'place') setStep(STEPS_FOR[stepIndex + 1])
   }
 
   const submitLabel = { chart: t('wiz_submit_chart'), groom: t('wiz_submit_groom'), bride: t('wiz_submit_bride'), self: t('wiz_submit_self') }[role]
