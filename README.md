@@ -28,7 +28,17 @@ npm run dev          # http://localhost:5173
 
 Set `VITE_API_URL` (see `.env.example`) when the backend is not on `http://127.0.0.1:8000`, and set `ALLOWED_ORIGINS` on the backend to the frontend's origin.
 
-## Deploy (Render, free tier)
+## Website (Firebase Hosting)
+
+The website is the same app as the Android one, with the same features (AI astrologer, Google login,
+kundlis in the account), at https://karnatakamatch-7bb64.web.app. It is built with `.env.production`.
+
+```bash
+npm run deploy:web     # builds into dist-web/ and deploys to Firebase Hosting
+npm run deploy:chat    # the AI chat server (Cloudflare Worker), when worker/ changes
+```
+
+## Deploy (Render, free tier — the older copy of the website)
 
 `render.yaml` deploys both parts. It sets each service's public URL explicitly (`VITE_API_URL`, `ALLOWED_ORIGINS`), so update those two values if you rename a service.
 

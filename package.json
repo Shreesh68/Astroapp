@@ -7,6 +7,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "build:android": "vite build --mode android && cap sync android",
+    "build:web": "vite build --outDir dist-web",
+    "deploy:web": "npm run build:web && npx --yes firebase-tools@15.34.1 deploy --only hosting --project karnatakamatch-7bb64",
     "android": "npm run build:android && cap open android",
     "deploy:chat": "wrangler deploy --config worker/wrangler.jsonc",
     "test": "vitest run",

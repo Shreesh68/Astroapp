@@ -61,8 +61,9 @@ const cors = {
 }
 const fail = (status, error) => Response.json({ error }, { status, headers: cors })
 const ip = request => request.headers.get('cf-connecting-ip') || ''
-// the Android app (Capacitor serves it from https://localhost), its website, and local development
-const ALLOWED_ORIGIN = /^(?:https?|capacitor):\/\/localhost(?::\d+)?$|^https:\/\/karnatakamatch\.onrender\.com$/
+// the Android app (Capacitor serves it from https://localhost), its website (Firebase Hosting, and the
+// older Render copy), and local development
+const ALLOWED_ORIGIN = /^(?:https?|capacitor):\/\/localhost(?::\d+)?$|^https:\/\/(?:karnatakamatch\.onrender\.com|karnatakamatch-7bb64\.(?:web\.app|firebaseapp\.com))$/
 
 // ── Questions answered with a fixed reply, never by the model ─────────────
 // Checked on the server so no app version can bypass them. Only the person's own words are checked,
