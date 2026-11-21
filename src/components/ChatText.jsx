@@ -121,3 +121,25 @@ export function AnswerWithDetails({ text, writing = false, detailsLabel }) {
     </div>
   )
 }
+
+/**
+ * An answer as the separate chat messages it is sent in: one per paragraph, the way a person texts.
+ * A very short paragraph ("Ravi," or a lead-in to a list) goes with the next one, and there are at most
+ * six. While the answer is still being written (complete: false), only the finished paragraphs count.
+ */
+export function messageParts(text = '', { complete = true } = {}) {
+  let paras = text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
+  if (!complete && !/\n\s*\n\s*$/.test(text)) paras = paras.slice(0, -1) // the last one is still coming
+  const parts = []
+  let carry = ''
+  for (const p of paras) {
+    const joined = carry ? `${carry}\n\n${p}` : p
+    if (joined.length < 60 || /:\s*$/.test(joined)) carry = joined
+    else { parts.push(joined); carry = '' }
+  }
+  if (carry) {
+    if (complete) parts.length ? (parts[parts.length - 1] += `\n\n${carry}`) : parts.push(carry)
+  }
+  while (parts.length > 6) parts.splice(-2, 2, `${parts.at(-2)}\n\n${parts.at(-1)}`)
+  return parts
+}

@@ -16,7 +16,7 @@ import { currentDasha } from '../components/DashaTimeline'
 import { DateFields, TimeFields } from '../components/DateTimeFields'
 import PlaceSearch from '../components/PlaceSearch'
 import SouthIndianChart from '../components/SouthIndianChart'
-import { Answer } from '../components/ChatText'
+import { Answer, messageParts } from '../components/ChatText'
 import { ASTROLOGERS, astrologerById } from '../lib/astrologers'
 
 /**
@@ -52,7 +52,7 @@ function useVisibleHeight() {
   return height
 }
 
-function Shell({ subtitle, actions, follow, children, composer, announce = '', pin, astro }) {
+function Shell({ subtitle, actions, follow, children, composer, announce = '', pin, astro, onAstro }) {
   const { t, lang, setLang } = useLanguage()
   const navigate = useNavigate()
   const height = useVisibleHeight()
@@ -76,11 +76,15 @@ function Shell({ subtitle, actions, follow, children, composer, announce = '', p
       <header className="flex items-center gap-2 bg-ink px-2 pb-2 text-cream shadow" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
         <button type="button" onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/'))}
           className="rounded-full p-2 text-xl leading-none hover:bg-white/10" aria-label={t('wiz_back')}>←</button>
-        {astro ? <AstroAvatar astro={astro} /> : <span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-full bg-turmeric text-xl text-ink">✺</span>}
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold leading-tight">{astro ? astro.name[lang] : t('ai_pick_title')}</p>
-          <p className="truncate text-xs text-cream/70">{subtitle}</p>
-        </div>
+        {/* tapping the astrologer (picture and name) switches to another one */}
+        <button type="button" onClick={onAstro} disabled={!onAstro} aria-label={onAstro ? `${t('ai_change_astro')}: ${astro?.name[lang]}` : undefined}
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-xl text-left enabled:hover:bg-white/5">
+          {astro ? <AstroAvatar astro={astro} /> : <span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-full bg-turmeric text-xl text-ink">✺</span>}
+          <span className="min-w-0 flex-1">
+            <span className="block truncate font-semibold leading-tight">{astro ? astro.name[lang] : t('ai_pick_title')}{onAstro && <span aria-hidden className="ml-1 text-cream/60">▾</span>}</span>
+            <span className="block truncate text-xs text-cream/70">{subtitle}</span>
+          </span>
+        </button>
         {actions}
         <button type="button" onClick={() => setLang(lang === 'en' ? 'kn' : 'en')} lang={lang === 'en' ? 'kn' : 'en'}
           className="rounded-full px-3 py-1.5 text-xs font-semibold text-cream/90 ring-1 ring-white/25 hover:bg-white/10">{t('lang_toggle')}</button>
@@ -319,6 +323,21 @@ function ChartChat({ profile, astro }) {
   const { messages, pending } = useChat(key)
   const [draft, setDraft] = useState('')
   const [clearing, setClearing] = useState(false) // asking before the conversation is deleted
+  // the newest answer appears one message at a time, like someone texting: each waits a moment (longer for a
+  // longer message) after the one before, whether the answer streams in or arrives all at once
+  const [paced, setPaced] = useState(null) // how many of its messages are on screen; null = all of them
+  const pendingParts = pending ? messageParts(pending.text, { complete: false }) : null
+  const lastIndex = messages.length - 1
+  const lastParts = messages[lastIndex]?.role === 'assistant' && !messages[lastIndex].kind ? messageParts(messages[lastIndex].content) : []
+  const partsNow = pendingParts || lastParts
+  useEffect(() => { if (pending && paced === null) setPaced(0) }, [pending]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (paced === null) return
+    if (!pending && paced >= lastParts.length) { setPaced(null); return }
+    if (paced >= partsNow.length) return
+    const id = setTimeout(() => setPaced(n => (n ?? 0) + 1), 700 + Math.min(1300, (partsNow[paced] || '').length * 8))
+    return () => clearTimeout(id)
+  }, [paced, partsNow.length, pending]) // eslint-disable-line react-hooks/exhaustive-deps
   const first = shortName(profile.name)
 
   useEffect(() => { getChart(profile).then(setChart, () => setChart(false)) }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -364,8 +383,6 @@ function ChartChat({ profile, astro }) {
   const actions = (
     <>
       <Link to={chartPath(profile)} className="rounded-full px-3 py-1.5 text-xs font-semibold text-cream/90 ring-1 ring-white/25 hover:bg-white/10">{t('ai_open_chart')}</Link>
-      <button type="button" onClick={() => navigate(`/ask?${profileToParams(profile)}&a=${astro.id}&pick=1`)}
-        className="rounded-full px-3 py-1.5 text-xs font-semibold text-cream/90 ring-1 ring-white/25 hover:bg-white/10">{t('ai_change_astro')}</button>
       {messages.length > 0 && !pending && (
         <button type="button" onClick={() => setClearing(true)} aria-label={t('ask_clear')}
           className="rounded-full p-2 text-lg leading-none hover:bg-white/10">⟲</button>
@@ -375,7 +392,8 @@ function ChartChat({ profile, astro }) {
 
   return (
     <Shell subtitle={pending ? t('ai_typing') : t('ai_astro_line', { years: astro.years, focus: astro.focus[lang] })} actions={actions} composer={composer} astro={astro}
-      follow={`${messages.length}-${pending?.text.length ?? -1}-${!!failed}-${!!chart}`} pin={messages.length}
+      onAstro={() => navigate(`/ask?${profileToParams(profile)}&a=${astro.id}&pick=1`)}
+      follow={`${messages.length}-${pending?.text.length ?? -1}-${!!failed}-${!!chart}-${paced ?? 'all'}`} pin={messages.length}
       announce={pending ? t('ai_typing') : messages.at(-1)?.role === 'assistant' ? messages.at(-1).content.slice(0, 300) : ''}>
       <Bubble from="bot">
         {/* the astrologer's greeting; the kundli itself only when the person asks to see it */}
@@ -383,17 +401,32 @@ function ChartChat({ profile, astro }) {
           ? <p role="alert">{t('ai_chart_failed')} <Link to="/birth-chart" className="font-semibold text-kumkum underline">{t('ai_chart_redo')}</Link></p>
           : <p>{say(astro, lang, 'greet', { name: first })}</p>}
       </Bubble>
-      {messages.map((m, i) => (
-        <Bubble key={i} from={m.role === 'user' ? 'me' : 'bot'} time={m.time} ticks={m.role === 'user' && m.status !== 'failed' ? <Ticks status={m.status || 'read'} /> : null}
-          extra={m.role === 'assistant' && !m.kind && <a href={reportLink(messages[i - 1]?.content, m.content)} className="-my-2 mr-auto px-1 py-2 text-xs underline">⚑ {t('ask_report')}</a>}>
-          {m.role === 'user' ? <p className="whitespace-pre-wrap">{m.content}</p>
-            : m.kind === 'chart' ? (chart ? <KundliSummary profile={profile} chart={chart} intro={say(astro, lang, 'chart_intro', { name: first })} /> : null)
-              : <Answer text={m.content} />}
-        </Bubble>
-      ))}
-      {pending && (pending.text
-        ? <Bubble from="bot"><Answer text={pending.text} />{status && <p className="text-sm text-ink-500 animate-pulse">{status}</p>}</Bubble>
-        : <Typing label={status} />)}
+      {messages.flatMap((m, i) => {
+        const report = m.role === 'assistant' && !m.kind && <a href={reportLink(messages[i - 1]?.content, m.content)} className="-my-2 mr-auto px-1 py-2 text-xs underline">⚑ {t('ask_report')}</a>
+        if (m.role === 'user' || m.kind) {
+          return [
+            <Bubble key={i} from={m.role === 'user' ? 'me' : 'bot'} time={m.time} ticks={m.role === 'user' && m.status !== 'failed' ? <Ticks status={m.status || 'read'} /> : null}>
+              {m.role === 'user' ? <p className="whitespace-pre-wrap">{m.content}</p>
+                : chart ? <KundliSummary profile={profile} chart={chart} intro={say(astro, lang, 'chart_intro', { name: first })} /> : null}
+            </Bubble>,
+          ]
+        }
+        // an answer arrives as several short messages; the newest is revealed one at a time
+        const parts = messageParts(m.content)
+        const shown = paced !== null && i === lastIndex && !pending ? parts.slice(0, paced) : parts
+        return shown.map((part, j) => (
+          <Bubble key={`${i}-${j}`} from="bot" time={j === parts.length - 1 ? m.time : null} extra={j === parts.length - 1 && report}>
+            <Answer text={part} />
+          </Bubble>
+        ))
+      })}
+      {!pending && paced !== null && paced < lastParts.length && <Typing />}
+      {pending && (
+        <>
+          {pendingParts.slice(0, paced ?? 0).map((part, j) => <Bubble key={`p-${j}`} from="bot"><Answer text={part} /></Bubble>)}
+          <Typing label={status} />
+        </>
+      )}
       {clearing && (
         <div role="alertdialog" aria-label={t('ask_clear_q')} className="mx-auto max-w-xs rounded-lg bg-white px-3 py-3 text-center text-sm shadow">
           <p>{t('ask_clear_q')}</p>
