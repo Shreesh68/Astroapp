@@ -71,6 +71,18 @@ export async function ask(profile, lang, question, astro = DEFAULT_ASTROLOGER) {
 }
 
 /**
+ * "Show me the chart": answered at once on the phone with the kundli card (kind: 'chart'), without
+ * asking the AI — the card is drawn from the chart itself when the chat is shown.
+ */
+export function showChart(profile, question, astro = DEFAULT_ASTROLOGER) {
+  const key = chatKey(profile, astro)
+  if (running.has(key) || !question.trim()) return
+  update(key, list => [...list.filter(m => m.status !== 'failed'),
+    { role: 'user', content: question.trim(), time: now(), status: 'read' },
+    { role: 'assistant', kind: 'chart', content: '', time: now() }])
+}
+
+/**
  * Answer a question that was left without one: Android closed the app while it was being answered.
  * Call when the chat opens; does nothing if the last message already has its answer or failed.
  */
@@ -93,7 +105,8 @@ async function answer(key, profile, lang, history, astro) {
   try {
     await askAstrologer({
       profile, lang, astrologer: astro,
-      messages: history.slice(-HISTORY_TURNS).map(({ role, content }) => ({ role, content })),
+      // the kundli cards shown on request are for the person, not the AI (with the request that asked for them)
+      messages: history.filter((m, i) => !m.kind && !history[i + 1]?.kind).slice(-HISTORY_TURNS).map(({ role, content }) => ({ role, content })),
       onEvent: ev => {
         if (!read && (ev.type === 'text' || ev.type === 'tool')) { read = true; markAsked({ status: 'read' }) }
         if (ev.type === 'text') { text += ev.text; setRunning({ text, status: null }) }

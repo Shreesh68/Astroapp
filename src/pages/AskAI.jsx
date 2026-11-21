@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { DateTime } from 'luxon'
 import { useLanguage } from '../contexts/LanguageContext'
-import { ask, chatKey, clearChat, resume, useChat } from '../lib/chats'
+import { ask, chatKey, clearChat, resume, showChart, useChat } from '../lib/chats'
+import { isChartRequest, say } from '../lib/astroVoice'
 import { reportLink } from '../lib/contact'
 import { MARITAL, WORK, saveLife, useLife } from '../lib/life'
 import { getChart } from '../lib/api'
@@ -174,8 +175,10 @@ function Intake({ astro }) {
   // worded at render time, so switching language rewords the whole conversation
   const question = (s, d = data) => ({ from: 'bot', key: `ai_ask_${s}`, vars: { name: d.name } })
   const confirm = d => ({ from: 'bot', confirm: d })
-  const wording = m => m.key === 'ai_hello_as' ? t(m.key, { name: astro.name[lang], years: astro.years }) : m.key ? t(m.key, m.vars) : m.date ? fmtLongDate(m.date, lang) : m.time ? fmtTime(m.time, lang)
-    : m.confirm ? `${t('ai_confirm_intro')}\n${summary(m.confirm)}\n\n${t('ai_confirm_q')}` : m.text
+  // the chosen astrologer's own words for each step (astroVoice.js); other lines from the app's strings
+  const voiced = (key, vars) => say(astro, lang, key.replace(/^ai_(hello_as|)/, (m, h) => (h ? 'hello' : '')), vars) || t(key, vars)
+  const wording = m => m.key ? voiced(m.key, m.vars) : m.date ? fmtLongDate(m.date, lang) : m.time ? fmtTime(m.time, lang)
+    : m.confirm ? `${voiced('ai_confirm_intro')}\n${summary(m.confirm)}\n\n${voiced('ai_confirm_q')}` : m.text
 
   function summary(d) {
     return [
@@ -329,7 +332,9 @@ function ChartChat({ profile, astro }) {
     // a question typed in Kannada is answered in Kannada, and the chat switches with it
     const replyIn = lang === 'en' && KANNADA.test(question) ? 'kn' : lang
     if (replyIn !== lang) setLang(replyIn)
-    ask(profile, replyIn, question, astro.id)
+    // "show me the chart" is answered at once with the kundli, without asking the AI
+    if (isChartRequest(question)) showChart(profile, question, astro.id)
+    else ask(profile, replyIn, question, astro.id)
   }
 
   const status = pending?.status && t(pending.status === 'thinking' ? 'ask_thinking' : `ask_tool_${pending.status}`)
@@ -339,7 +344,7 @@ function ChartChat({ profile, astro }) {
     <>
       {messages.length === 0 && !pending && (
         <div className="flex gap-2 overflow-x-auto pb-2">
-          {['ask_s1', 'ask_s2', 'ask_s5', 'ask_s3', 'ask_s4'].map(k => (
+          {['ask_s1', 'ask_s2', 'ask_s5', 'ask_s3', 'ask_s4', 'ask_chart'].map(k => (
             <button key={k} type="button" onClick={() => send(t(k))}
               className="shrink-0 rounded-full border border-cream-200 bg-white px-3 py-1.5 text-sm text-ink-700 shadow-sm">{t(k)}</button>
           ))}
@@ -373,15 +378,17 @@ function ChartChat({ profile, astro }) {
       follow={`${messages.length}-${pending?.text.length ?? -1}-${!!failed}-${!!chart}`} pin={messages.length}
       announce={pending ? t('ai_typing') : messages.at(-1)?.role === 'assistant' ? messages.at(-1).content.slice(0, 300) : ''}>
       <Bubble from="bot">
-        {chart ? <KundliSummary profile={profile} chart={chart} />
-          : chart === false
-            ? <p role="alert">{t('ai_chart_failed')} <Link to="/birth-chart" className="font-semibold text-kumkum underline">{t('ai_chart_redo')}</Link></p>
-            : <p>{t('ai_chart_ready', { name: first })}</p>}
+        {/* the astrologer's greeting; the kundli itself only when the person asks to see it */}
+        {chart === false
+          ? <p role="alert">{t('ai_chart_failed')} <Link to="/birth-chart" className="font-semibold text-kumkum underline">{t('ai_chart_redo')}</Link></p>
+          : <p>{say(astro, lang, 'greet', { name: first })}</p>}
       </Bubble>
       {messages.map((m, i) => (
         <Bubble key={i} from={m.role === 'user' ? 'me' : 'bot'} time={m.time} ticks={m.role === 'user' && m.status !== 'failed' ? <Ticks status={m.status || 'read'} /> : null}
-          extra={m.role === 'assistant' && <a href={reportLink(messages[i - 1]?.content, m.content)} className="-my-2 mr-auto px-1 py-2 text-xs underline">⚑ {t('ask_report')}</a>}>
-          {m.role === 'user' ? <p className="whitespace-pre-wrap">{m.content}</p> : <Answer text={m.content} />}
+          extra={m.role === 'assistant' && !m.kind && <a href={reportLink(messages[i - 1]?.content, m.content)} className="-my-2 mr-auto px-1 py-2 text-xs underline">⚑ {t('ask_report')}</a>}>
+          {m.role === 'user' ? <p className="whitespace-pre-wrap">{m.content}</p>
+            : m.kind === 'chart' ? (chart ? <KundliSummary profile={profile} chart={chart} intro={say(astro, lang, 'chart_intro', { name: first })} /> : null)
+              : <Answer text={m.content} />}
         </Bubble>
       ))}
       {pending && (pending.text
@@ -411,7 +418,7 @@ function ChartChat({ profile, astro }) {
  * it — Moon sign and nakshatra, Lagna, the running dasha and Kuja dosha — in the chat's language, before
  * the person asks their questions.
  */
-function KundliSummary({ profile, chart }) {
+function KundliSummary({ profile, chart, intro }) {
   const { t, lang } = useLanguage()
   const first = shortName(profile.name)
   const moon = chart.planets.moon
@@ -420,7 +427,7 @@ function KundliSummary({ profile, chart }) {
   const running = currentDasha(chart.dasha)
   return (
     <div className="space-y-2">
-      <p>{t('ai_kundli_intro', { name: first })}</p>
+      <p>{intro}</p>
       <div className="rounded-lg bg-cream p-2">
         <SouthIndianChart ephem={chart} lang={lang} />
       </div>
@@ -436,7 +443,6 @@ function KundliSummary({ profile, chart }) {
         <dt className="text-ink-500">{t('manglik_title')}</dt><dd className="font-semibold">{t(`kuja_${chart.manglik.strength}`)}</dd>
       </dl>
       <AboutLife profile={profile} />
-      <p>{t('ai_ask_next', { name: first })}</p>
     </div>
   )
 }
