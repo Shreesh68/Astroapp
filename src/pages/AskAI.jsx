@@ -15,7 +15,8 @@ import { currentDasha } from '../components/DashaTimeline'
 import { DateFields, TimeFields } from '../components/DateTimeFields'
 import PlaceSearch from '../components/PlaceSearch'
 import SouthIndianChart from '../components/SouthIndianChart'
-import { AnswerWithDetails, splitAnswer } from '../components/ChatText'
+import { Answer } from '../components/ChatText'
+import { ASTROLOGERS, astrologerById } from '../lib/astrologers'
 
 /**
  * "Ask AI": a WhatsApp-style chat with the AI astrologer. Without a person in the URL it first asks for
@@ -25,7 +26,11 @@ import { AnswerWithDetails, splitAnswer } from '../components/ChatText'
 export default function AskAI() {
   const [params] = useSearchParams()
   const profile = paramsToProfile(params)
-  return profile ? <ChartChat key={params.toString()} profile={profile} /> : <Intake />
+  const chosen = params.get('a')
+  // no astrologer chosen yet (or asked to change): the list comes first
+  if (!chosen || params.get('pick')) return <Picker profile={profile} />
+  const astro = astrologerById(chosen)
+  return profile ? <ChartChat key={params.toString()} profile={profile} astro={astro} /> : <Intake key={astro.id} astro={astro} />
 }
 
 const now = () => DateTime.now().toFormat('HH:mm')
@@ -46,7 +51,7 @@ function useVisibleHeight() {
   return height
 }
 
-function Shell({ subtitle, actions, follow, children, composer, announce = '', pin }) {
+function Shell({ subtitle, actions, follow, children, composer, announce = '', pin, astro }) {
   const { t, lang, setLang } = useLanguage()
   const navigate = useNavigate()
   const height = useVisibleHeight()
@@ -55,7 +60,8 @@ function Shell({ subtitle, actions, follow, children, composer, announce = '', p
   const atBottom = useRef(true)
   useLayoutEffect(() => {
     const el = scroller.current
-    if (el && atBottom.current) el.scrollTop = el.scrollHeight
+    // a list (the astrologer picker) has nothing to follow and starts at the top
+    if (el && follow != null && atBottom.current) el.scrollTop = el.scrollHeight
   }, [follow, height])
   // a new message from the person brings the view back down
   useLayoutEffect(() => { atBottom.current = true }, [pin])
@@ -69,9 +75,9 @@ function Shell({ subtitle, actions, follow, children, composer, announce = '', p
       <header className="flex items-center gap-2 bg-ink px-2 pb-2 text-cream shadow" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}>
         <button type="button" onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/'))}
           className="rounded-full p-2 text-xl leading-none hover:bg-white/10" aria-label={t('wiz_back')}>←</button>
-        <span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-full bg-turmeric text-xl text-ink">✺</span>
+        {astro ? <AstroAvatar astro={astro} /> : <span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-full bg-turmeric text-xl text-ink">✺</span>}
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold leading-tight">{t('ai_name')}</p>
+          <p className="truncate font-semibold leading-tight">{astro ? astro.name[lang] : t('ai_pick_title')}</p>
           <p className="truncate text-xs text-cream/70">{subtitle}</p>
         </div>
         {actions}
@@ -84,9 +90,11 @@ function Shell({ subtitle, actions, follow, children, composer, announce = '', p
         <p className="mx-auto mb-3 max-w-xs rounded-lg bg-[#FFF5C4] px-3 py-1.5 text-center text-[11px] text-ink-700 shadow-sm">{t('ask_note')}</p>
         {children}
       </div>
-      <div className="border-t border-black/5 bg-[#F6F1E7] px-2 pt-2" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }}>
-        {composer}
-      </div>
+      {composer && (
+        <div className="border-t border-black/5 bg-[#F6F1E7] px-2 pt-2" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }}>
+          {composer}
+        </div>
+      )}
     </div>
   )
 }
@@ -145,13 +153,13 @@ const EMPTY = { name: '', gender: '', date: '', time: '', timeUnknown: false, pl
 // Kannada script: someone writing in Kannada gets the chat (summary and answers) in Kannada
 const KANNADA = /[\u0C80-\u0CFF]/
 
-function Intake() {
+function Intake({ astro }) {
   const { t, lang, setLang } = useLanguage()
   const navigate = useNavigate()
   const { profiles } = useProfiles()
   const [data, setData] = useState(EMPTY)
   const [log, setLog] = useState(() => [
-    { from: 'bot', key: 'ai_hello', at: now() },
+    { from: 'bot', key: 'ai_hello_as', at: now() },
     { from: 'bot', key: profiles.length ? 'ai_ask_who' : 'ai_ask_name', at: now() },
   ])
   const [step, setStep] = useState(profiles.length ? 'who' : 'name')
@@ -166,7 +174,7 @@ function Intake() {
   // worded at render time, so switching language rewords the whole conversation
   const question = (s, d = data) => ({ from: 'bot', key: `ai_ask_${s}`, vars: { name: d.name } })
   const confirm = d => ({ from: 'bot', confirm: d })
-  const wording = m => m.key ? t(m.key, m.vars) : m.date ? fmtLongDate(m.date, lang) : m.time ? fmtTime(m.time, lang)
+  const wording = m => m.key === 'ai_hello_as' ? t(m.key, { name: astro.name[lang], years: astro.years }) : m.key ? t(m.key, m.vars) : m.date ? fmtLongDate(m.date, lang) : m.time ? fmtTime(m.time, lang)
     : m.confirm ? `${t('ai_confirm_intro')}\n${summary(m.confirm)}\n\n${t('ai_confirm_q')}` : m.text
 
   function summary(d) {
@@ -201,7 +209,7 @@ function Intake() {
     add({ from: 'me', text: p.name })
     if (!p.gender) { setStep('gender'); setReturnTo('confirm'); add(question('gender', d)) }
     // already saved and complete: no second confirmation, straight to the chat about their chart
-    else navigate(`/ask?${profileToParams(p)}`, { replace: true })
+    else navigate(`/ask?${profileToParams(p)}&a=${astro.id}`, { replace: true })
   }
 
   function draw() {
@@ -210,7 +218,7 @@ function Intake() {
     let saved = profile
     if (profile.id) saveEdits(profile)
     else saved = saveProfile(profile)
-    navigate(`/ask?${profileToParams(saved)}`, { replace: true })
+    navigate(`/ask?${profileToParams(saved)}&a=${astro.id}`, { replace: true })
   }
 
   function change(field) {
@@ -279,7 +287,7 @@ function Intake() {
   }
 
   return (
-    <Shell subtitle={t('ai_online')} follow={`${log.length}-${step}`} composer={composer}>
+    <Shell subtitle={t('ai_astro_line', { years: astro.years, focus: astro.focus[lang] })} follow={`${log.length}-${step}`} composer={composer} astro={astro}>
       {log.map((m, i) => (
         <Bubble key={i} from={m.from} time={m.at} ticks={m.from === 'me' ? <Ticks status="read" /> : null}><p className="whitespace-pre-line">{wording(m)}</p></Bubble>
       ))}
@@ -299,9 +307,10 @@ function Ticks({ status }) {
   return null
 }
 
-function ChartChat({ profile }) {
+function ChartChat({ profile, astro }) {
   const { t, lang, setLang } = useLanguage()
-  const key = chatKey(profile)
+  const navigate = useNavigate()
+  const key = chatKey(profile, astro.id)
   const [chart, setChart] = useState(null)
   // the conversation lives in lib/chats, so an answer keeps coming even if this screen is closed
   const { messages, pending } = useChat(key)
@@ -311,7 +320,7 @@ function ChartChat({ profile }) {
 
   useEffect(() => { getChart(profile).then(setChart, () => setChart(false)) }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
   // a question left unanswered because Android closed the app is answered now
-  useEffect(() => { resume(profile, lang) }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { resume(profile, lang, astro.id) }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function send(raw) {
     const question = raw.trim()
@@ -320,7 +329,7 @@ function ChartChat({ profile }) {
     // a question typed in Kannada is answered in Kannada, and the chat switches with it
     const replyIn = lang === 'en' && KANNADA.test(question) ? 'kn' : lang
     if (replyIn !== lang) setLang(replyIn)
-    ask(profile, replyIn, question)
+    ask(profile, replyIn, question, astro.id)
   }
 
   const status = pending?.status && t(pending.status === 'thinking' ? 'ask_thinking' : `ask_tool_${pending.status}`)
@@ -350,6 +359,8 @@ function ChartChat({ profile }) {
   const actions = (
     <>
       <Link to={chartPath(profile)} className="rounded-full px-3 py-1.5 text-xs font-semibold text-cream/90 ring-1 ring-white/25 hover:bg-white/10">{t('ai_open_chart')}</Link>
+      <button type="button" onClick={() => navigate(`/ask?${profileToParams(profile)}&a=${astro.id}&pick=1`)}
+        className="rounded-full px-3 py-1.5 text-xs font-semibold text-cream/90 ring-1 ring-white/25 hover:bg-white/10">{t('ai_change_astro')}</button>
       {messages.length > 0 && !pending && (
         <button type="button" onClick={() => setClearing(true)} aria-label={t('ask_clear')}
           className="rounded-full p-2 text-lg leading-none hover:bg-white/10">⟲</button>
@@ -358,9 +369,9 @@ function ChartChat({ profile }) {
   )
 
   return (
-    <Shell subtitle={pending ? t('ai_typing') : t('ai_about', { name: first })} actions={actions} composer={composer}
+    <Shell subtitle={pending ? t('ai_typing') : t('ai_astro_line', { years: astro.years, focus: astro.focus[lang] })} actions={actions} composer={composer} astro={astro}
       follow={`${messages.length}-${pending?.text.length ?? -1}-${!!failed}-${!!chart}`} pin={messages.length}
-      announce={pending ? t('ai_typing') : messages.at(-1)?.role === 'assistant' ? splitAnswer(messages.at(-1).content).head : ''}>
+      announce={pending ? t('ai_typing') : messages.at(-1)?.role === 'assistant' ? messages.at(-1).content.slice(0, 300) : ''}>
       <Bubble from="bot">
         {chart ? <KundliSummary profile={profile} chart={chart} />
           : chart === false
@@ -370,17 +381,17 @@ function ChartChat({ profile }) {
       {messages.map((m, i) => (
         <Bubble key={i} from={m.role === 'user' ? 'me' : 'bot'} time={m.time} ticks={m.role === 'user' && m.status !== 'failed' ? <Ticks status={m.status || 'read'} /> : null}
           extra={m.role === 'assistant' && <a href={reportLink(messages[i - 1]?.content, m.content)} className="-my-2 mr-auto px-1 py-2 text-xs underline">⚑ {t('ask_report')}</a>}>
-          {m.role === 'user' ? <p className="whitespace-pre-wrap">{m.content}</p> : <AnswerWithDetails text={m.content} />}
+          {m.role === 'user' ? <p className="whitespace-pre-wrap">{m.content}</p> : <Answer text={m.content} />}
         </Bubble>
       ))}
       {pending && (pending.text
-        ? <Bubble from="bot"><AnswerWithDetails text={pending.text} writing detailsLabel={t('ask_details_coming')} />{status && <p className="text-sm text-ink-500 animate-pulse">{status}</p>}</Bubble>
+        ? <Bubble from="bot"><Answer text={pending.text} />{status && <p className="text-sm text-ink-500 animate-pulse">{status}</p>}</Bubble>
         : <Typing label={status} />)}
       {clearing && (
         <div role="alertdialog" aria-label={t('ask_clear_q')} className="mx-auto max-w-xs rounded-lg bg-white px-3 py-3 text-center text-sm shadow">
           <p>{t('ask_clear_q')}</p>
           <div className="mt-2 flex justify-center gap-2">
-            <button type="button" onClick={() => { clearChat(profile); setClearing(false) }} className="chip-bad min-h-11 px-4">{t('ask_clear_yes')}</button>
+            <button type="button" onClick={() => { clearChat(profile, astro.id); setClearing(false) }} className="chip-bad min-h-11 px-4">{t('ask_clear_yes')}</button>
             <button type="button" onClick={() => setClearing(false)} className="chip min-h-11 bg-cream px-4 text-ink-700">{t('cancel')}</button>
           </div>
         </div>
@@ -458,5 +469,52 @@ function AboutLife({ profile }) {
       {row('work', WORK)}
       <p className="text-[11px] text-ink-500">{t('life_note')}</p>
     </div>
+  )
+}
+
+// ── Choosing an astrologer ──────────────────────────────────────────────
+
+/** The astrologer's initials on their colour. */
+function AstroAvatar({ astro, size = 'h-10 w-10 text-sm' }) {
+  const { lang } = useLanguage()
+  const words = astro.name[lang].split(' ').filter(w => !/^(Pandit|Acharya|Shri|Smt\.?|ಪಂಡಿತ್|ಆಚಾರ್ಯ|ಶ್ರೀ|ಶ್ರೀಮತಿ)$/.test(w))
+  const initials = words.slice(0, 2).map(w => [...w][0]).join('')
+  return <span aria-hidden className={`flex ${size} shrink-0 items-center justify-center rounded-full font-bold text-white`} style={{ background: astro.colour }}>{initials}</span>
+}
+
+/**
+ * The list of AI astrologers to chat with: name, years of practice whose style each follows, specialty.
+ * With a chart already chosen (profile), picking one goes straight to that chart's chat with them.
+ */
+function Picker({ profile }) {
+  const { t, lang } = useLanguage()
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const current = params.get('a')
+  const choose = a => navigate(profile ? `/ask?${profileToParams(profile)}&a=${a.id}` : `/ask?a=${a.id}`, { replace: !!profile })
+  return (
+    <Shell subtitle={t('ai_pick_sub')}>
+      <p className="mx-auto mb-1 max-w-sm text-center text-sm text-ink-700">{t('ai_pick_note')}</p>
+      <ul className="mx-auto max-w-lg space-y-2">
+        {ASTROLOGERS.map(a => (
+          <li key={a.id}>
+            <button type="button" onClick={() => choose(a)} aria-current={a.id === current ? 'true' : undefined}
+              className={`flex w-full items-start gap-3 rounded-2xl bg-white px-4 py-3 text-left shadow-sm ring-1 transition hover:ring-turmeric ${a.id === current ? 'ring-2 ring-turmeric-700' : 'ring-cream-200'}`}>
+              <AstroAvatar astro={a} size="h-12 w-12 text-base" />
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-semibold">{a.name[lang]}</span>
+                  <span className="rounded bg-cream-100 px-1.5 text-[10px] font-semibold text-ink-500">AI</span>
+                </span>
+                <span className="block text-sm font-medium text-turmeric-800">{t('ai_years', { n: a.years })} · {a.focus[lang]}</span>
+                <span className="block text-sm text-ink-500">{a.about[lang]}</span>
+                <span className="block text-xs text-ink-400">{a.home[lang]}</span>
+              </span>
+              <span aria-hidden className="self-center text-xl text-ink-400">›</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Shell>
   )
 }

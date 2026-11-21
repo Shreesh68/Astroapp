@@ -6,13 +6,16 @@
 import { useEffect, useState } from 'react'
 import { DateTime } from 'luxon'
 import { askAstrologer } from './astrologer'
+import { DEFAULT_ASTROLOGER } from './astrologers'
 
 // the server accepts a bounded conversation; an odd count keeps the history starting with a question
 const HISTORY_TURNS = 15
 const CHANGED = 'km-chat-changed'
 export const REPLIED = 'km-chat-replied'
 
-export const chatKey = p => `km_chat_${p.date}_${p.timeUnknown ? 'x' : p.time}_${(+p.lat).toFixed(4)}_${(+p.lon).toFixed(4)}`
+// one conversation per chart and astrologer; chats from before astrologers could be chosen belong to the default one
+export const chatKey = (p, astro = DEFAULT_ASTROLOGER) =>
+  `km_chat_${p.date}_${p.timeUnknown ? 'x' : p.time}_${(+p.lat).toFixed(4)}_${(+p.lon).toFixed(4)}${astro && astro !== DEFAULT_ASTROLOGER ? `_${astro}` : ''}`
 const now = () => DateTime.now().toFormat('HH:mm')
 
 export function loadChat(key) {
@@ -58,28 +61,28 @@ function update(key, fn) {
  * The question is saved straight away with status 'sent' (✓), becomes 'read' (✓✓) when the answer starts,
  * or 'failed' with the reason if it could not be answered.
  */
-export async function ask(profile, lang, question) {
-  const key = chatKey(profile)
+export async function ask(profile, lang, question, astro = DEFAULT_ASTROLOGER) {
+  const key = chatKey(profile, astro)
   if (running.has(key) || !question.trim()) return
   const asked = { role: 'user', content: question.trim(), time: now(), status: 'sent' }
   const history = [...loadChat(key).filter(m => m.status !== 'failed'), asked]
   saveChat(key, history)
-  return answer(key, profile, lang, history)
+  return answer(key, profile, lang, history, astro)
 }
 
 /**
  * Answer a question that was left without one: Android closed the app while it was being answered.
  * Call when the chat opens; does nothing if the last message already has its answer or failed.
  */
-export function resume(profile, lang) {
-  const key = chatKey(profile)
+export function resume(profile, lang, astro = DEFAULT_ASTROLOGER) {
+  const key = chatKey(profile, astro)
   const history = loadChat(key)
   const last = history.at(-1)
   if (running.has(key) || last?.role !== 'user' || last.status === 'failed') return
-  return answer(key, profile, lang, history)
+  return answer(key, profile, lang, history, astro)
 }
 
-async function answer(key, profile, lang, history) {
+async function answer(key, profile, lang, history, astro) {
   running.set(key, { text: '', status: 'thinking', profile })
   notify(key)
 
@@ -89,7 +92,7 @@ async function answer(key, profile, lang, history) {
   let read = false
   try {
     await askAstrologer({
-      profile, lang,
+      profile, lang, astrologer: astro,
       messages: history.slice(-HISTORY_TURNS).map(({ role, content }) => ({ role, content })),
       onEvent: ev => {
         if (!read && (ev.type === 'text' || ev.type === 'tool')) { read = true; markAsked({ status: 'read' }) }
@@ -101,19 +104,19 @@ async function answer(key, profile, lang, history) {
     if (!text.trim()) throw new Error('failed')
     running.delete(key)
     update(key, list => [...list.map(m => (m === list.at(-1) && m.role === 'user' ? { ...m, status: 'read' } : m)), { role: 'assistant', content: text.trim(), time: now() }])
-    window.dispatchEvent(new CustomEvent(REPLIED, { detail: { key, profile } }))
+    window.dispatchEvent(new CustomEvent(REPLIED, { detail: { key, profile, astro } }))
   } catch (err) {
     running.delete(key)
     markAsked({ status: 'failed', error: err.message || 'failed' })
   }
 }
 
-export function clearChat(profile) {
-  const key = chatKey(profile)
+export function clearChat(profile, astro = DEFAULT_ASTROLOGER) {
+  const key = chatKey(profile, astro)
   if (running.has(key)) return
   saveChat(key, [])
   notify(key)
 }
 
 /** Whether an answer is being written for this chat right now. */
-export const isRunning = profile => running.has(chatKey(profile))
+export const isRunning = (profile, astro) => running.has(chatKey(profile, astro))

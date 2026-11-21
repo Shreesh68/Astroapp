@@ -14,6 +14,7 @@ import { findPlace } from './places'
 import { readProfiles, samePerson } from './profiles'
 import { buildFacts, checkAnswer, correctionRequest, languageIssues } from './factcheck'
 import { lifeFromText, lifeLine, readLife, saveLife } from './life'
+import { DEFAULT_ASTROLOGER, astrologerById } from './astrologers'
 
 const CHAT_URL = (import.meta.env.VITE_CHAT_URL || '').replace(/\/+$/, '')
 const MAX_ROUNDS = 6
@@ -240,7 +241,7 @@ async function modelStep(payload, signal, onText, retried = false) {
  * answer follows) | { type: 'done', factcheck: { issues, corrected } }; failures throw ApiError
  * with a short code (busy, daily_limit, unavailable, failed, too_many_steps, not_configured).
  */
-export async function askAstrologer({ profile, messages, lang, signal, onEvent }) {
+export async function askAstrologer({ profile, messages, lang, signal, onEvent, astrologer = DEFAULT_ASTROLOGER }) {
   if (!CHAT_URL) throw new ApiError('not_configured')
   // what the person says about their own life ("I'm still single") is kept for every later question
   const said = lifeFromText(messages[messages.length - 1]?.content)
@@ -283,14 +284,14 @@ export async function askAstrologer({ profile, messages, lang, signal, onEvent }
     context.push(focus.join('\n'))
   } else if (!/sade|sati|shani|saturn|jupiter|guru|rahu|ketu|transit|panchang|muhurt|ಸಾಡೇ|ಶನಿ|ಗುರು|ರಾಹು|ಕೇತು|ಗೋಚಾರ|ಪಂಚಾಂಗ|ಮುಹೂರ್ತ/i.test(question)) {
     // a general question (not about one planet or transit either): overview, then ask which area
-    convo[last] = { ...convo[last], content: `${convo[last].content}\n\n[No specific area of life is named: give a short overview from the analysis and the coming periods, and finish the opening (before any heading) by asking which area — career, marriage, money, health, studies — they would like to look at in detail.]` }
+    convo[last] = { ...convo[last], content: `${convo[last].content}\n\n[No specific area of life is named: give a short overview from the analysis and the coming periods, and end by asking which area — career, marriage, money, health, studies — they would like to look at in detail.]` }
   }
 
   let wroteText = false
   let correction = null // the issues found in the first draft, once a correction has been asked for
   for (let round = 0; round < MAX_ROUNDS; round++) {
     let first = true
-    const { text, calls } = await modelStep({ messages: convo, lang }, signal, piece => {
+    const { text, calls } = await modelStep({ messages: convo, lang, astrologer }, signal, piece => {
       if (first && wroteText) onEvent({ type: 'text', text: '\n\n' })
       first = false
       wroteText = true
@@ -301,7 +302,7 @@ export async function askAstrologer({ profile, messages, lang, signal, onEvent }
       const issues = safely('fact check', () => [
         ...checkAnswer(text, buildFacts(birth, natal, context)),
         // a Kannada answer stays in Kannada; the names of people and places are fine
-        ...(lang === 'kn' ? languageIssues(text, [profile.name, profile.place, ...saved.map(p => p.name)]) : []),
+        ...(lang === 'kn' ? languageIssues(text, [profile.name, profile.place, ...saved.map(p => p.name), astrologerById(astrologer).name.en]) : []),
       ], [])
       if (issues.length && !correction) {
         correction = issues
